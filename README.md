@@ -23,9 +23,9 @@ npx sockz agent
 
 ```bash
 # Connect to control panel (netcat)
-netcat localhost 54321
+netcat localhost 2222
 # Other TCP connection (telnet)
-telnet localhost 54321
+telnet localhost 2222
 ```
 
 ## Options
@@ -47,8 +47,8 @@ Allowed values:
 
 - role: `server`
 - host: `127.0.0.1`
-- agentPort: `12345`
-- clientPort: `54321`
+- agentPort: `1111`
+- clientPort: `2222`
 - prompt: `"😉 "`
 
 
