@@ -111,6 +111,7 @@ export class BaseSocket extends Base {
       this.signature = sig;
       this.log.info(`Registered as: ${sig}`);
       this.send(`Registered as: ${sig}`);
+      this.emit('registered');
     } else {
       this.log.warn(`Cannot register without signature!`, sig);
       this.send(`Cannot register without signature!`);

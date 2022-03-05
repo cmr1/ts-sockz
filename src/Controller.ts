@@ -65,15 +65,12 @@ export class Controller extends Base {
 
   public connectAgent(socket: Socket): void {
     const agent = new Agent(this, socket);
-
     this.agents.push(agent);
-
     this.debug();
   }
 
   public connectClient(socket: Socket): void {
     const client = new Client(this, socket);
-
     this.clients.push(client);
     this.debug();
   }

