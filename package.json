@@ -1,0 +1,51 @@
+{
+  "name": "watching",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "server": "nodemon src/bin/server.ts",
+    "agent": "nodemon -d 2 src/bin/agent.ts",
+    "pack": "cat bin/pack | bash",
+    "ci:audit": "npm audit",
+    "ci:install": "npm install",
+    "ci:build": "npm run build",
+    "ci:setup": "npm run ci:install && npm run ci:lint && npm run ci:build",
+    "ci:test": "npm test",
+    "ci:lint": "npm run lint",
+    "preci": "npm run ci:setup",
+    "ci": "npm run ci:test",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "doc": "typedoc src",
+    "doc:commit": "npm run doc && git add docs && (git commit -m 'Generated Docs' || echo 'Docs unchanged')",
+    "preversion": "npm run ci && npm run doc:commit",
+    "test": "echo \"Error: no test specified\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "colors": "^1.4.0",
+    "fs-extra": "^10.0.1",
+    "shelljs": "^0.8.5",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@bowtie/prettier": "^1.4.1",
+    "@types/node": "^17.0.21",
+    "@typescript-eslint/eslint-plugin": "^5.13.0",
+    "@typescript-eslint/parser": "^5.13.0",
+    "eslint": "^8.10.0",
+    "eslint-config-bowtie": "^2.0.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "nodemon": "^2.0.15",
+    "prettier": "^2.5.1",
+    "terser": "^5.12.0",
+    "ts-node": "^10.6.0",
+    "typedoc": "^0.22.12",
+    "typescript": "4.5"
+  }
+}

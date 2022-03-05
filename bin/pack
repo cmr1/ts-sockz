@@ -1,0 +1,77 @@
+#!/bin/bash
+
+PACK_DIR=${PACK_DIR:-lib}
+DIST_DIR=${DIST_DIR:-dist}
+
+# COLORS! :)
+red='\033[0;31m'
+cyan='\033[0;36m'
+blue='\033[0;34m'
+yellow='\033[0;33m'
+nocolor='\033[0m'
+
+confirmYes() {
+  echo ""
+  msg="${1:-Are you sure?}"
+  read -r -p "${msg} [Y/n] " response
+  case "$response" in
+    [nN][oO]|[nN])
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+error() {
+  prefix="[ERROR] "
+  echo -e "${red}${prefix}${1}${nocolor}"
+}
+
+warn() {
+  prefix="[WARNING] "
+  echo -e "${yellow}${prefix}${1}${nocolor}"
+}
+
+log() {
+  prefix="[INFO] "
+  echo -e "${cyan}${prefix}${1}${nocolor}"
+}
+
+processFile() {
+  pck=$1
+  file=$2
+  out=$3
+  dir=$(dirname $file)
+  base=$(basename $file)
+  raw=$(cat $file | wc -l)
+
+  if [[ "$raw" == "0" ]]; then
+    warn "Skipping empty source: $file"
+  else
+    terser $file -c -m -o $out
+    min=$(cat $out | wc -l)
+    log "Packed: $file ($out) [lines: $raw => $min]"
+  fi
+
+  return 0
+}
+
+processDir() {
+  pck=$1
+  dir=$2
+  for path in $dir/*; do
+    out=$pck/$path
+    if [[ -d $path ]]; then
+      processDir $pck $path
+    elif [[ ${path: -3} == ".js" ]]; then
+      processFile $pck $path $out
+    else
+      [[ -d $(dirname $out) ]] || mkdir -p $(dirname $out)
+      cp $path $out
+    fi
+  done
+}
+
+processDir $PACK_DIR $DIST_DIR
