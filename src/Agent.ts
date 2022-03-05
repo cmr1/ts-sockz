@@ -1,6 +1,6 @@
 import 'colors';
 import os, { UserInfo } from 'os';
-// import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
 import shell from 'shelljs';
 import { Socket } from 'net';
@@ -54,7 +54,7 @@ export class Agent extends BaseSocket {
   }
 
   public init(): void {
-    super.init();
+    super.init(['GET']);
 
     this.on('registered', () => {
       this.ctl.clients.forEach((client) => {
@@ -63,6 +63,30 @@ export class Agent extends BaseSocket {
         }
       });
     });
+  }
+
+  public GET(...args: any[]): void {
+    this.log.info(`GET for agent`, args);
+
+    const [page, ...rest] = args;
+    let status = 'HTTP/2 404 Not Found';
+    let content = 'Not Found';
+    let contentType = 'text/html';
+
+    const resp = [
+      status,
+      'server: sockz',
+      `date: ${Date.now()}`,
+      `content-type: ${contentType}`,
+      `content-length: ${content.length}`,
+      '',
+      content
+    ];
+
+    this.log.info('Sending HTTP payload');
+    this.log.info(resp.join(`\r\n`));
+
+    this.write(resp.join(`\r\n`));
   }
 
   public data(data: any): void {

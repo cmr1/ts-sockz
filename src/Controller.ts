@@ -1,5 +1,7 @@
 import 'colors';
 import { Server, Socket } from 'net';
+import { WebSocketServer, WebSocket } from 'ws';
+import { createServer, Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
 import { Base, BaseSocket } from './Base';
 import { Agent } from './Agent';
 import { Client } from './Client';
@@ -10,6 +12,8 @@ const DEFAULT_CLIENT_PORT = 2222;
 const DEFAULT_PROMPT = `😉 `;
 
 export class Controller extends Base {
+  public web: WebServer;
+  public wss: WebSocketServer;
   public agentServer: Server;
   public clientServer: Server;
 
@@ -40,11 +44,23 @@ export class Controller extends Base {
   public init(): void {
     this.log.debug('Controller#init()');
 
+    this.web = new WebServer((req: IncomingMessage, res: WebServerResponse) => {
+      res.end('Hello world!');
+    });
+
+    this.wss = new WebSocketServer({ host: this.host, port: 8080 }, () => {
+      this.log.info(`Websocket server listening: ${this.host}:8080`);
+    });
+
     this.agentServer = new Server();
     this.clientServer = new Server();
   }
 
   public listen(): void {
+    this.web.listen(8181, this.host, () => {
+      this.log.info(`Web server listening: ${this.host}:8181`);
+    });
+
     this.agentServer.listen(this.agentPort, this.host, () => {
       this.log.info(`Agent server listening: ${this.host}:${this.agentPort}`);
     });
@@ -55,12 +71,21 @@ export class Controller extends Base {
   }
 
   public handle(): void {
+    this.wss.on('connection', this.connectWeb.bind(this));
     this.agentServer.on('connection', this.connectAgent.bind(this));
     this.clientServer.on('connection', this.connectClient.bind(this));
   }
 
   public debug(): void {
     this.log.debug(`${this.agents.length} Agent(s) | ${this.clients.length} Client(s)`);
+  }
+
+  public connectWeb(ws: WebSocket): void {
+    ws.on('message', function message(data) {
+      console.log('received: %s', data);
+    });
+
+    ws.send('something');
   }
 
   public connectAgent(socket: Socket): void {
