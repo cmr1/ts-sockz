@@ -1,13 +1,18 @@
 {
-  "name": "watching",
-  "version": "1.0.0",
+  "name": "sockz",
+  "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "sockz": "bin/sockz",
+    "sockz-agent": "bin/sockz-agent",
+    "sockz-server": "bin/sockz-server"
+  },
   "scripts": {
     "build": "tsc",
     "server": "nodemon src/bin/server.ts",
     "agent": "nodemon -d 2 src/bin/agent.ts",
-    "pack": "cat bin/pack | bash",
     "ci:audit": "npm audit",
     "ci:install": "npm install",
     "ci:build": "npm run build",
@@ -21,6 +26,7 @@
     "doc": "typedoc src",
     "doc:commit": "npm run doc && git add docs && (git commit -m 'Generated Docs' || echo 'Docs unchanged')",
     "preversion": "npm run ci && npm run doc:commit",
+    "postversion": "npm publish && git push --follow-tags",
     "test": "echo \"Error: no test specified\" && exit 0"
   },
   "keywords": [],

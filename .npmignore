@@ -9,16 +9,12 @@
 Makefile
 
 src
-bin
 tmp
 test
 coverage
 node_modules
 
-!lib
-!lib/dist
-!lib/**/*.js
-!lib/**/*.d.ts
+!bin
 !dist
 !dist/**/*.js
 !dist/**/*.d.ts

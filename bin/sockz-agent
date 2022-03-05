@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+
+const { Controller } = require('../dist');
+
+const ctl = new Controller('localhost');
+
+ctl.startAgent();
