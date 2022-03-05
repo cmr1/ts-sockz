@@ -101,3 +101,11 @@ sockz agent
 ```
 
 *Supports all the same options*
+
+Also available from docker:
+
+https://github.com/cmr1/docker-sockz
+
+```
+docker run cmr1/sockz
+```
