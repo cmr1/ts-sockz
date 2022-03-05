@@ -2,6 +2,11 @@
 
 const { Controller } = require('../dist');
 
-const ctl = new Controller('0.0.0.0');
+const [cmd, src, role, ...args] = [...process.argv];
+const ctl = new Controller(...args);
 
-ctl.startServer();
+if (/agent/i.test(role)) {
+  ctl.startAgent();
+} else {
+  ctl.startServer();
+}
