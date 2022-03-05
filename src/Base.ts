@@ -46,7 +46,7 @@ export class BaseSocket extends Base {
       this.write(msg);
 
       if (keep) {
-        this.write(this.prompt);
+        this.write(`\n${this.prompt}`);
       }
     }
   }
@@ -92,7 +92,7 @@ export class BaseSocket extends Base {
         this.relay.write(data);
 
         if (this.relay.prompt) {
-          this.relay.write(this.relay.prompt);
+          this.relay.write(`\n${this.relay.prompt}`);
         }
       }
     } else {

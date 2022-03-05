@@ -34,7 +34,7 @@ export class Client extends BaseSocket {
 
     if (!isNaN(index) && index >= 0 && index < this.ctl.agents.length) {
       const agent = this.ctl.agents[index];
-      this.prompt = `\n${agent.signature}> `;
+      this.prompt = `${agent.signature}> `;
       this.send(`Using [${index}]: ${agent.signature} | ${agent.id}`);
       this.relay = agent;
       agent.relay = this;

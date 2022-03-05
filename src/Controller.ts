@@ -7,7 +7,7 @@ import { Client } from './Client';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_AGENT_PORT = 12345;
 const DEFAULT_CLIENT_PORT = 54321;
-const DEFAULT_PROMPT = `\ntroll> `;
+const DEFAULT_PROMPT = `😉 `;
 
 export class Controller extends Base {
   public agentServer: Server;

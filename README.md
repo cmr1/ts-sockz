@@ -48,7 +48,7 @@ Allowed values:
 - host: `127.0.0.1`
 - agentPort: `12345`
 - clientPort: `54321`
-- prompt: `\ntroll> `
+- prompt: `"😉 "`
 
 
 ## Advanced
@@ -71,6 +71,19 @@ npx sockz agent <host> 7331
 netcat <host> 1337
 ```
 
+To customize the session prompt:
+
+```bash
+# Start a server and use poop for client prompt
+npx sockz server 0.0.0.0 1111 2222 "💩 "
+# Connect a client
+netcat localhost 2222
+# Client connection output
+[ID] Client is ready
+💩 help # send "help" cmd to control server
+HELP: Commands: reg, ping, info, help, exit, ls, use
+```
+
 Install globally to run without `npx`
 
 ```bash
@@ -85,3 +98,5 @@ sockz server
 # Start an agent
 sockz agent
 ```
+
+*Supports all the same options*
