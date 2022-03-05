@@ -7,6 +7,7 @@ TypeScript - Fun with sockets
 - [Options](#options)
 - [Defaults](#defaults)
 - [Advanced](#advanced)
+- [Documentation](https://cmr1.github.io/ts-sockz)
 
 ## Simple
 
