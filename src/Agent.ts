@@ -59,7 +59,7 @@ export class Agent extends BaseSocket {
     this.on('registered', () => {
       this.ctl.clients.forEach((client) => {
         if (!client.relay) {
-          client.send(`\n\n\tNew Agent: [${this.ctl.agents.indexOf(this)}] ${this.signature} | ${this.id}\n`);
+          client.ls(`\n** New Agent Connected! **`);
         }
       });
     });

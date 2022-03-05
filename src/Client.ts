@@ -11,9 +11,9 @@ export class Client extends BaseSocket {
     super.init(['ls', 'use']);
   }
 
-  public ls() {
+  public ls(...args: string[]) {
     const { agents } = this.ctl;
-    const lines = ['Agent List:'];
+    const lines = [...args].concat(['Agent List:']);
 
     if (agents.length) {
       this.ctl.agents.forEach((agent, index) => {
