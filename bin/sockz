@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-const { Controller } = require('../dist');
+const { SockzController } = require('../dist');
 
 const [cmd, src, role, ...args] = [...process.argv];
-const ctl = new Controller(...args);
+const ctl = new SockzController(...args);
 
 if (/agent/i.test(role)) {
   ctl.startAgent();

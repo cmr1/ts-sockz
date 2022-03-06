@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const { Controller } = require('../dist');
+const { SockzController } = require('../dist');
 
-const ctl = new Controller('localhost');
+const ctl = new SockzController('localhost');
 
 ctl.startAgent();
