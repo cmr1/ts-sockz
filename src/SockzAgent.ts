@@ -66,9 +66,9 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
         if (fs.existsSync(target)) {
           process.chdir(target);
-          response = `chdir ${target}`;
+          response = `chdir ${process.cwd()}`;
 
-          this.log.warn(`Changed working directory: ${target}`);
+          this.log.warn(`Changed working directory: ${process.cwd()}`);
         } else {
           response = `${action} [FAIL] (target ${target} does not exist)`;
         }
