@@ -1,29 +1,28 @@
 import 'colors';
 import fs from 'fs';
 import path from 'path';
-import url from 'url';
 import { Server, Socket } from 'net';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createServer, Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
-import { Base, BaseSocket } from './Base';
-import { Agent } from './Agent';
-import { Client } from './Client';
-import { WebClient } from './WebClient';
+import { Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
+import { SockzBase, SockzRelay } from './SockzBase';
+import { SockzAgent } from './SockzAgent';
+import { SockzClient } from './SockzClient';
+import { SockzWebClient } from './SockzWebClient';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_AGENT_PORT = 1111;
 const DEFAULT_CLIENT_PORT = 2222;
-const DEFAULT_PROMPT = `😉 `;
+const DEFAULT_PROMPT = `sockz> `;
 
-export class Controller extends Base {
+export class SockzController extends SockzBase {
   public web: WebServer;
   public wss: WebSocketServer;
   public agentServer: Server;
   public clientServer: Server;
 
-  public agents: Agent[] = [];
-  public clients: Client[] = [];
-  public webClients: WebClient[] = [];
+  public agents: SockzAgent[] = [];
+  public clients: SockzClient[] = [];
+  public webClients: SockzWebClient[] = [];
 
   constructor(
     public host = DEFAULT_HOST,
@@ -36,7 +35,7 @@ export class Controller extends Base {
 
   public startAgent(): void {
     const socket = new Socket();
-    const agent = new Agent(this, socket);
+    const agent = new SockzAgent(this, socket);
     agent.start();
   }
 
@@ -47,7 +46,7 @@ export class Controller extends Base {
   }
 
   public init(): void {
-    this.log.debug('Controller#init()');
+    this.log.debug('SockzController#init()');
 
     this.web = new WebServer(this.connectWebserver.bind(this));
 
@@ -65,11 +64,11 @@ export class Controller extends Base {
     });
 
     this.agentServer.listen(this.agentPort, this.host, () => {
-      this.log.info(`Agent server listening: ${this.host}:${this.agentPort}`);
+      this.log.info(`SockzAgent server listening: ${this.host}:${this.agentPort}`);
     });
 
     this.clientServer.listen(this.clientPort, this.host, () => {
-      this.log.info(`Client server listening: ${this.host}:${this.clientPort}`);
+      this.log.info(`SockzClient server listening: ${this.host}:${this.clientPort}`);
     });
   }
 
@@ -80,7 +79,7 @@ export class Controller extends Base {
   }
 
   public debug(): void {
-    this.log.debug(`${this.agents.length} Agent(s) | ${this.clients.length} Client(s)`);
+    this.log.debug(`${this.agents.length} SockzAgent(s) | ${this.clients.length} SockzClient(s)`);
   }
 
   public connectWebserver(req: IncomingMessage, res: WebServerResponse) {
@@ -90,7 +89,7 @@ export class Controller extends Base {
       // parse URL
       // const parsedUrl = url.parse(req.url);
       // TODO: Future support with https + certs
-      const baseURL =  'http://' + req.headers.host;
+      const baseURL = 'http://' + req.headers.host;
       const parsedUrl = new URL(req.url, baseURL);
       // extract URL path
       let pathname = path.join(__dirname, 'public', parsedUrl.pathname);
@@ -114,7 +113,7 @@ export class Controller extends Base {
 
       const exist = fs.existsSync(pathname);
 
-      if(!exist) {
+      if (!exist) {
         // if the file is not found, return 404
         res.statusCode = 404;
         res.end(`File ${pathname} not found!`);
@@ -125,13 +124,13 @@ export class Controller extends Base {
       if (fs.statSync(pathname).isDirectory()) pathname += `index${ext}`;
 
       // read file from file system
-      fs.readFile(pathname, function(err, data){
-        if(err){
+      fs.readFile(pathname, function (err, data) {
+        if (err) {
           res.statusCode = 500;
           res.end(`Error getting the file: ${err}.`);
         } else {
           // if the file is found, set Content-type and send data
-          res.setHeader('Content-type', map[ext] || 'text/plain' );
+          res.setHeader('Content-type', map[ext] || 'text/plain');
           res.end(data);
         }
       });
@@ -139,7 +138,7 @@ export class Controller extends Base {
   }
 
   public connectWebsocket(ws: WebSocket): void {
-    const client = new WebClient(this, ws, this.prompt);
+    const client = new SockzWebClient(this, ws);
 
     this.webClients.push(client);
 
@@ -152,25 +151,25 @@ export class Controller extends Base {
   }
 
   public connectAgent(socket: Socket): void {
-    const agent = new Agent(this, socket);
+    const agent = new SockzAgent(this, socket);
     this.agents.push(agent);
     this.debug();
   }
 
   public connectClient(socket: Socket): void {
-    const client = new Client(this, socket);
+    const client = new SockzClient(this, socket);
     this.clients.push(client);
     this.debug();
   }
 
-  public disconnect(target: BaseSocket | WebClient): void {
+  public disconnect(target: SockzRelay | SockzWebClient): void {
     // this.log.debug(`Disconnecting target: ${target.signature} [${target.id}]`);
 
-    if (target instanceof Agent) {
+    if (target instanceof SockzAgent) {
       this.disconnectAgent(target);
-    } else if (target instanceof Client) {
+    } else if (target instanceof SockzClient) {
       this.disconnectClient(target);
-    } else if (target instanceof WebClient) {
+    } else if (target instanceof SockzWebClient) {
       this.disconnectWebClient(target);
     } else {
       this.log.warn(`Invalid target type, cannot disconnect:`, target);
@@ -179,15 +178,15 @@ export class Controller extends Base {
     this.debug();
   }
 
-  public disconnectAgent(agent: Agent): void {
+  public disconnectAgent(agent: SockzAgent): void {
     this.agents = this.agents.filter((item) => item.id !== agent.id);
   }
 
-  public disconnectClient(client: Client): void {
+  public disconnectClient(client: SockzClient): void {
     this.clients = this.clients.filter((item) => item.id !== client.id);
   }
 
-  public disconnectWebClient(client: WebClient): void {
+  public disconnectWebClient(client: SockzWebClient): void {
     this.webClients = this.webClients.filter((item) => item.id !== client.id);
   }
 }

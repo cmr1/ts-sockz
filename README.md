@@ -49,7 +49,7 @@ Allowed values:
 - host: `127.0.0.1`
 - agentPort: `1111`
 - clientPort: `2222`
-- prompt: `"😉 "`
+- prompt: `"sockz> "`
 
 
 ## Advanced

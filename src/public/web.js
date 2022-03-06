@@ -4,33 +4,37 @@ $(function(){
   let socket = new WebSocket("ws://localhost:8080");
 
   socket.onopen = function(e) {
-    console.log("[open] Connection established");
-    // console.log("Sending to server");
-    // socket.send("My name is John");
+    console.debug("[open] Connection established");
   };
 
   socket.onmessage = function(event) {
-    console.log(`[message] Data received from server: ${event.data}`);
+    console.debug(`[message] Data received from server: ${event.data}`);
     $(document).find('pre').append(event.data);
+    scroll();
   };
 
   socket.onclose = function(event) {
     if (event.wasClean) {
-      console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+      console.debug(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
     } else {
       // e.g. server process killed or network down
       // event.code is usually 1006 in this case
-      console.log('[close] Connection died');
+      console.debug('[close] Connection died');
     }
   };
 
   socket.onerror = function(error) {
-    console.log(`[error] ${error.message}`);
+    console.debug(`[error] ${error.message}`);
   };
 
-  $(document).on('keyup', function(event) {
-    // console.log('Key Up', event.key);
+  function scroll() {
+    // window.setInterval(function() {
+      var elem = document.getElementById('console');
+      elem.scrollTop = elem.scrollHeight;
+    // }, 5000);
+  }
 
+  $(document).on('keyup', function(event) {
     // if (event.altKey || event.ctrlKey || event.shiftKey) {
     //   console.log('Handle modified keyup', event);
     // } else {
@@ -48,6 +52,11 @@ $(function(){
           socket.send(buff.join(''));
 
           buff = [];
+
+          scroll();
+
+          // $(this).find('pre').scrollTop($(this).find('pre')[0].scrollHeight);
+
 
           break;
         case 'Backspace':
