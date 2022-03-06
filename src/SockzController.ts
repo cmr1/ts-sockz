@@ -98,7 +98,7 @@ export class SockzController extends SockzBase {
       const baseURL = 'http://' + req.headers.host;
       const parsedUrl = new URL(req.url, baseURL);
       // extract URL path
-      let pathname = path.join(__dirname, 'public', parsedUrl.pathname);
+      let pathname = path.join(__dirname, '..', 'public', parsedUrl.pathname);
       // based on the URL path, extract the file extension. e.g. .js, .doc, ...
       const ext = path.parse(pathname).ext || '.html';
       // maps file extension to MIME typere
