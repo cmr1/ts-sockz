@@ -118,12 +118,12 @@ export class WebClient extends Base implements IBaseConnectable {
       if (cmd === 'exit') {
         this.reset();
       } else {
-        // this.log.debug(`Relay data: ${data}`, this.relay.signature, this.relay.id);
+        this.log.debug(`Relay data: ${data}`, this.relay.signature, this.relay.id);
         this.relay.write(data);
 
-        if (this.relay.prompt) {
-          this.relay.write(`\n${this.relay.prompt}`);
-        }
+        // if (this.relay.prompt) {
+        //   this.relay.write(`\n${this.relay.prompt}`);
+        // }
       }
     } else {
       if (this.commands.includes(cmd)) {
@@ -167,10 +167,10 @@ export class WebClient extends Base implements IBaseConnectable {
     this.send(`HELP: Commands: ${this.commands.join(', ')}`);
   }
 
-  // public exit(msg = 'Goodbye.'): void {
-  //   this.send(`${msg}\n`, false);
-  //   this.socket.destroy();
-  // }
+  public exit(msg = 'Goodbye.'): void {
+    this.send(`${msg}\n`, false);
+    // this.socket.destroy();
+  }
 
   // public end() {
   //   this.log.debug(`Ending`);
@@ -195,7 +195,7 @@ export class WebClient extends Base implements IBaseConnectable {
 
       if (this.relay) {
         this.relay.reset();
-        this.relay.send('Disconnected');
+        // this.relay.send('Disconnected');
       }
     }
   }

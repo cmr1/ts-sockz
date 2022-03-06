@@ -58,7 +58,7 @@ export class BaseSocket extends Base implements IBaseConnectable {
 
     forwardEvents.forEach((e) => {
       this.socket.on(e, (...args) => {
-        this.log.debug(`Socket.on(${e})`, args);
+        this.log.debug(`Socket.on(${e}) ${args[0]}`, args);
         this.emit(e, ...args);
       });
     });

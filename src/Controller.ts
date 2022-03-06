@@ -170,6 +170,8 @@ export class Controller extends Base {
       this.disconnectAgent(target);
     } else if (target instanceof Client) {
       this.disconnectClient(target);
+    } else if (target instanceof WebClient) {
+      this.disconnectWebClient(target);
     } else {
       this.log.warn(`Invalid target type, cannot disconnect:`, target);
     }
