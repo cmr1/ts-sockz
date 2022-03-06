@@ -1,5 +1,5 @@
 import { SockzController } from '../../src';
 
-const ctl = new SockzController('0.0.0.0');
+const ctl = new SockzController('localhost');
 
 ctl.startServer();

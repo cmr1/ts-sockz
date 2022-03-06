@@ -1,5 +1,6 @@
 import 'colors';
 import fs from 'fs';
+import tls, { TLSSocket } from 'tls';
 import path from 'path';
 import shell from 'shelljs';
 import { Socket } from 'net';
@@ -12,7 +13,7 @@ const rick = 'https://www.youtube.com/watch?v=oHg5SJYRHA0';
 export class SockzAgent extends SockzRelay implements ISockzAgent {
   public listener?: boolean;
 
-  constructor(public ctl: SockzController, public socket: Socket) {
+  constructor(public ctl: SockzController, public socket: TLSSocket) {
     super(ctl, socket);
   }
 
@@ -22,7 +23,21 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
     this.on('registered', () => {
       this.ctl.clients.forEach(this.notify.bind(this));
       this.ctl.webClients.forEach(this.notify.bind(this));
+
     });
+
+    // this.log.info(this.socket);
+
+    const cert = this.socket.getPeerCertificate();
+
+    this.log.info(`Cert info`, cert);
+
+    if (this.socket.authorized) {
+      this.log.success(`Authorized`);
+      this.write(`reg ${this.signature}`);
+    } else {
+      this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
+    }
   }
 
   public notify(client: SockzRelay): void {
@@ -101,10 +116,27 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
     this.signature = `${this.systemInfo?.user.username}@${this.systemInfo?.os.hostname}`;
 
-    this.socket.connect({ port: this.ctl.agentPort, host: this.ctl.host }, () => {
+    this.socket = tls.connect({ ...this.ctl.tlsOptions('client', 'bob'), host: this.ctl.host, port: this.ctl.agentPort }, () => {
       this.log.info(`SockzAgent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
 
-      this.write(`reg ${this.signature}`);
+      const cert = this.socket.getPeerCertificate();
+
+      this.log.info(`Cert info`, cert);
+
+      if (this.socket.authorized) {
+        this.log.success(`Authorized`);
+        this.write(`reg ${this.signature}`);
+      } else {
+        this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
+      }
     });
+
+    // const conn = this.socket.connect({ ...this.ctl.tlsOptions('client', 'alice'), port: this.ctl.agentPort, host: this.ctl.host }, () => {
+    //   this.log.info(`SockzAgent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
+
+    //   this.write(`reg ${this.signature}`);
+    // });
+
+    // console.log(conn);
   }
 }

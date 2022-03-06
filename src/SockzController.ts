@@ -1,7 +1,8 @@
 import 'colors';
 import fs from 'fs';
 import path from 'path';
-import { Server, Socket } from 'net';
+import { Socket } from 'net';
+import tls, { Server, TLSSocket, TLSSocketOptions } from 'tls';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
 import { SockzBase } from './SockzBase';
@@ -38,9 +39,23 @@ export class SockzController extends SockzBase {
     super();
   }
 
+  public tlsOptions(dir, name): TLSSocketOptions {
+    const certsDir = path.join(__dirname, '..', 'tmp', 'certs');
+
+    return {
+      key: fs.readFileSync(path.join(certsDir, dir, `${name}_key.pem`)),
+      cert: fs.readFileSync(path.join(certsDir, dir, `${name}_cert.pem`)),
+      ca: [fs.readFileSync(path.join(certsDir, dir, `${name}_cert.pem`))],
+      requestCert: true,
+      rejectUnauthorized: false
+    }
+  }
+
   public startAgent(): void {
     const socket = new Socket();
-    const agent = new SockzAgent(this, socket);
+    const agent = new SockzAgent(this, new TLSSocket(socket));
+    // const agent = new SockzAgent(this, new TLSSocket(socket, this.tlsOptions('client', 'alice')));
+    // const socket = tls.connect({ ...this.tlsOptions('client', 'alice'), host: this.host, port: this.agentPort });
     agent.start();
   }
 
@@ -59,14 +74,16 @@ export class SockzController extends SockzBase {
       this.log.info(`Websocket server listening: ${this.host}:${this.wssPort}`);
     });
 
-    this.agentServer = new Server();
-    this.clientServer = new Server();
+    this.agentServer = new Server(this.tlsOptions('server', 'server'));
+    this.clientServer = new Server(this.tlsOptions('server', 'server'));
   }
 
   public listen(): void {
     this.web.listen(this.webPort, this.host, () => {
       this.log.info(`Web server listening: ${this.host}:${this.webPort}`);
     });
+
+    // this.agentServer = tls.createServer(this.tlsOptions('server', 'server'), this.connectAgent.bind(this))
 
     this.agentServer.listen(this.agentPort, this.host, () => {
       this.log.info(`SockzAgent server listening: ${this.host}:${this.agentPort}`);
@@ -79,7 +96,7 @@ export class SockzController extends SockzBase {
 
   public handle(): void {
     this.wss.on('connection', this.connectWebsocket.bind(this));
-    this.agentServer.on('connection', this.connectAgent.bind(this));
+    this.agentServer.on('secureConnection', this.connectAgent.bind(this));
     this.clientServer.on('connection', this.connectClient.bind(this));
   }
 
@@ -163,7 +180,7 @@ export class SockzController extends SockzBase {
     // ws.send('something');
   }
 
-  public connectAgent(socket: Socket): void {
+  public connectAgent(socket: TLSSocket): void {
     const agent = new SockzAgent(this, socket);
     this.agents.push(agent);
     this.debug();
