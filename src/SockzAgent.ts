@@ -1,4 +1,6 @@
 import 'colors';
+import fs from 'fs';
+import path from 'path';
 import shell from 'shelljs';
 import { Socket } from 'net';
 import { ISockzAgent, SockzRelay } from './SockzBase';
@@ -17,7 +19,6 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
     super.init();
 
     this.on('registered', () => {
-      this.log.warn('Registered');
       this.ctl.clients.forEach(this.notify.bind(this));
       this.ctl.webClients.forEach(this.notify.bind(this));
     });
@@ -57,21 +58,36 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
       response = JSON.stringify(this.systemInfo, null, 2);
     } else {
       const res = shell.exec(action, { silent: true });
+      const [cmd, ...args] = action.split(' ').map(str => str.trim());
 
-      if (res && res.stdout) {
-        response = res.stdout;
-      }
+      if (res?.code === 0 && cmd === 'cd' && args.length) {
+        const [dest] = args;
+        const target = /^\./.test(dest) ? path.join(process.cwd(), dest) : dest;
 
-      if (res && res.stderr) {
-        response += res.stderr;
-      }
+        if (fs.existsSync(target)) {
+          process.chdir(target);
+          response = `chdir ${target}`;
 
-      response += `\n${action}`;
-
-      if (res && res.code === 0) {
-        response += ` [OK]`.green;
+          this.log.warn(`Changed working directory: ${target}`);
+        } else {
+          response = `${action} [FAIL] (target ${target} does not exist)`;
+        }
       } else {
-        response += ` [FAIL] (code: ${res ? res.code : 'No Response'})`.red;
+        if (res && res.stdout) {
+          response = res.stdout;
+        }
+
+        if (res && res.stderr) {
+          response += res.stderr;
+        }
+
+        response += `\n${action}`;
+
+        if (res && res.code === 0) {
+          response += ` [OK]`.green;
+        } else {
+          response += ` [FAIL] (code: ${res ? res.code : 'No Response'})`.red;
+        }
       }
     }
 

@@ -1,7 +1,11 @@
 $(function(){
   let buff = [];
+  let socket = new WebSocket("ws://{{host}}:{{wssPort}}");
 
-  let socket = new WebSocket("ws://localhost:8080");
+  function scroll() {
+    var elem = document.getElementById('console');
+    elem.scrollTop = elem.scrollHeight;
+  }
 
   socket.onopen = function(e) {
     console.debug("[open] Connection established");
@@ -27,13 +31,6 @@ $(function(){
     console.debug(`[error] ${error.message}`);
   };
 
-  function scroll() {
-    // window.setInterval(function() {
-      var elem = document.getElementById('console');
-      elem.scrollTop = elem.scrollHeight;
-    // }, 5000);
-  }
-
   $(document).on('keyup', function(event) {
     // if (event.altKey || event.ctrlKey || event.shiftKey) {
     //   console.log('Handle modified keyup', event);
@@ -42,22 +39,14 @@ $(function(){
         case 'Alt':
         case 'Control':
         case 'Shift':
-          console.log('Ignoring keyup', event.key);
+          console.debug('Ignoring keyup', event.key);
           break;
         case 'Enter':
-          console.log('Send cmd', buff.join(''));
-
+          console.debug('Send cmd', buff.join(''));
           $(this).find('pre').append("\r\n");
-
           socket.send(buff.join(''));
-
           buff = [];
-
           scroll();
-
-          // $(this).find('pre').scrollTop($(this).find('pre')[0].scrollHeight);
-
-
           break;
         case 'Backspace':
           $(this).find('pre').text($(this).find('pre').text().slice(0, -1));

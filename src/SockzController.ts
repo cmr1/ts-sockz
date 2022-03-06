@@ -10,6 +10,8 @@ import { SockzClient } from './SockzClient';
 import { SockzWebClient } from './SockzWebClient';
 
 const DEFAULT_HOST = '127.0.0.1';
+const DEFAULT_WEB_PORT = 8080;
+const DEFAULT_WSS_PORT = 8181;
 const DEFAULT_AGENT_PORT = 1111;
 const DEFAULT_CLIENT_PORT = 2222;
 const DEFAULT_PROMPT = `sockz> `;
@@ -28,6 +30,8 @@ export class SockzController extends SockzBase {
     public host = DEFAULT_HOST,
     public agentPort = DEFAULT_AGENT_PORT,
     public clientPort = DEFAULT_CLIENT_PORT,
+    public webPort = DEFAULT_WEB_PORT,
+    public wssPort = DEFAULT_WSS_PORT,
     public prompt = DEFAULT_PROMPT
   ) {
     super();
@@ -50,8 +54,8 @@ export class SockzController extends SockzBase {
 
     this.web = new WebServer(this.connectWebserver.bind(this));
 
-    this.wss = new WebSocketServer({ host: this.host, port: 8080 }, () => {
-      this.log.info(`Websocket server listening: ${this.host}:8080`);
+    this.wss = new WebSocketServer({ host: this.host, port: this.wssPort }, () => {
+      this.log.info(`Websocket server listening: ${this.host}:${this.wssPort}`);
     });
 
     this.agentServer = new Server();
@@ -59,8 +63,8 @@ export class SockzController extends SockzBase {
   }
 
   public listen(): void {
-    this.web.listen(8181, this.host, () => {
-      this.log.info(`Web server listening: ${this.host}:8181`);
+    this.web.listen(this.webPort, this.host, () => {
+      this.log.info(`Web server listening: ${this.host}:${this.webPort}`);
     });
 
     this.agentServer.listen(this.agentPort, this.host, () => {
@@ -84,6 +88,8 @@ export class SockzController extends SockzBase {
 
   public connectWebserver(req: IncomingMessage, res: WebServerResponse) {
     console.log(`${req.method} ${req.url}`);
+
+    const replacements = ['host', 'webPort', 'wssPort'];
 
     if (req.url) {
       // parse URL
@@ -124,14 +130,20 @@ export class SockzController extends SockzBase {
       if (fs.statSync(pathname).isDirectory()) pathname += `index${ext}`;
 
       // read file from file system
-      fs.readFile(pathname, function (err, data) {
+      fs.readFile(pathname, (err, data) => {
         if (err) {
           res.statusCode = 500;
           res.end(`Error getting the file: ${err}.`);
         } else {
+          let content = data.toString();
+
+          replacements.forEach(key => {
+            content = content.replace(`{{${key}}}`, this[key]);
+          });
+
           // if the file is found, set Content-type and send data
           res.setHeader('Content-type', map[ext] || 'text/plain');
-          res.end(data);
+          res.end(content);
         }
       });
     }

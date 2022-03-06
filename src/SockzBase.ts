@@ -35,6 +35,8 @@ export interface ISockzBase {
   id: string;
   log: Logger;
   systemInfo?: ISockzSystemInfo;
+
+  load(): void;
 }
 
 export interface IBaseConnectable extends ISockzBase {
@@ -64,6 +66,7 @@ export interface IBaseConnectable extends ISockzBase {
   error(err: Error): void;
   disconnect(): void;
   showPrompt(): void;
+  updatePrompt(relay: SockzRelay, cwd?: string): void;
 }
 
 export interface ISockzClient {
@@ -87,6 +90,10 @@ export class SockzBase extends EventEmitter implements ISockzBase {
     this.id = id || uuidv4();
     this.log = new Logger(`${this.id} (${this.constructor.name})`);
 
+    this.load();
+  }
+
+  load(): void {
     this.systemInfo = {
       cwd: process.cwd(),
       pkg: require(path.join(__dirname, '..', 'package')),
@@ -191,6 +198,9 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
     if (this.relay) {
       if (cmd === 'exit') {
         this.reset();
+      } else if (cmd === 'chdir') {
+        this.relay.updatePrompt(this, args[0]);
+        this.relay.showPrompt();
       } else {
         this.log.debug(`Relay data: ${data}`, this.relay.signature, this.relay.id);
         this.relay.write(data);
@@ -292,8 +302,12 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
 
     if (!isNaN(index) && index >= 0 && index < this.ctl.agents.length) {
       const agent = this.ctl.agents[index];
-      this.prompt = `[${agent.signature}]`.cyan + ' ' + this.ctl.prompt;
-      this.send(`Using [${index}]: ${agent.signature} | ${agent.id}`);
+      const msg = `Using [${index}]: ${agent.signature} | ${agent.id}`;
+
+      this.updatePrompt(agent);
+
+      this.log.info(msg);
+      this.send(msg.bgGreen);
       this.relay = agent;
       agent.relay = this;
     } else {
@@ -304,5 +318,19 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   public end() {
     this.log.debug(`Ending`);
     this.disconnect();
+  }
+
+  public updatePrompt(relay: SockzRelay, cwd?: string): void {
+    if (cwd && relay.systemInfo) {
+      relay.systemInfo.cwd = cwd;
+    }
+
+    const promptParts = [
+      relay.signature?.cyan,
+      cwd?.yellow || relay.systemInfo?.cwd.yellow,
+      this.ctl.prompt
+    ];
+
+    this.prompt = promptParts.join(':');
   }
 }
