@@ -1,7 +1,8 @@
 import 'colors';
 import { Socket } from 'net';
-import { SockzRelay, ISockzClient } from './SockzBase';
+import { ISockzClient } from './contracts';
 import { SockzController } from './SockzController';
+import { SockzRelay } from './SockzRelay';
 
 export class SockzClient extends SockzRelay implements ISockzClient {
   constructor(public ctl: SockzController, public socket: Socket) {

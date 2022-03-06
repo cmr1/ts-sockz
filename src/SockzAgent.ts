@@ -3,8 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import shell from 'shelljs';
 import { Socket } from 'net';
-import { ISockzAgent, SockzRelay } from './SockzBase';
+import { ISockzAgent } from './contracts';
 import { SockzController } from './SockzController';
+import { SockzRelay } from './SockzRelay';
 
 const rick = 'https://www.youtube.com/watch?v=oHg5SJYRHA0';
 
