@@ -18,7 +18,11 @@ node_modules
 
 !bin
 !dist
+!public
 !dist/**/*.js
 !dist/**/*.d.ts
+!public/**/*.js
+!public/**/*.css
+!public/**/*.html
 !package.json
 !package-lock.json
