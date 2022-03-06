@@ -28,10 +28,14 @@ netcat localhost 2222
 telnet localhost 2222
 ```
 
+Visit the web client console:
+
+- [localhost:8080](http://localhost:8080)
+
 ## Options
 
 ```bash
-npx sockz <role> <host> <agentPort> <clientPort> <prompt>
+npx sockz <role> <host> <agentPort> <clientPort> <webPort> <wssPort> <prompt>
 ```
 
 Allowed values:
@@ -40,6 +44,8 @@ Allowed values:
 - host: `any<hostname | ipaddress>`
 - agentPort: `number`
 - clientPort: `number`
+- webPort: `number`
+- wssPort: `number`
 - prompt: `string`
 
 
@@ -49,6 +55,8 @@ Allowed values:
 - host: `127.0.0.1`
 - agentPort: `1111`
 - clientPort: `2222`
+- webPort: `8080`
+- wssPort: `8181`
 - prompt: `"sockz> "`
 
 
@@ -76,7 +84,7 @@ To customize the session prompt:
 
 ```bash
 # Start a server and use poop for client prompt
-npx sockz server 0.0.0.0 1111 2222 "💩 "
+npx sockz server 0.0.0.0 1111 2222 1337 7331 "💩 "
 # Connect a client
 netcat localhost 2222
 # Client connection output
