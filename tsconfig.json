@@ -12,7 +12,8 @@
       "ES2020"
     ],
     "types": [
-      "@types/node"
+      "@types/node",
+      "@types/ws"
     ],
     "outDir": "dist",
     "declaration": true,

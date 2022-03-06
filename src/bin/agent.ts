@@ -1,5 +1,5 @@
-import { Controller } from '../../src';
+import { SockzController } from '../../src';
 
-const ctl = new Controller('localhost');
+const ctl = new SockzController('localhost');
 
 ctl.startAgent();
