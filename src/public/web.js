@@ -11,6 +11,7 @@ $(function(){
 
   socket.onmessage = function(event) {
     console.log(`[message] Data received from server: ${event.data}`);
+    $(document).find('pre').append(event.data);
   };
 
   socket.onclose = function(event) {
@@ -41,6 +42,8 @@ $(function(){
           break;
         case 'Enter':
           console.log('Send cmd', buff.join(''));
+
+          $(this).find('pre').append("\r\n");
 
           socket.send(buff.join(''));
 

@@ -33,6 +33,7 @@
   "author": "CMR1",
   "license": "MIT",
   "dependencies": {
+    "ansi-to-html": "^0.7.2",
     "colors": "^1.4.0",
     "fs-extra": "^10.0.1",
     "shelljs": "^0.8.5",

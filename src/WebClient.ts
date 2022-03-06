@@ -1,60 +1,26 @@
+// import os, { UserInfo } from 'os';
+import fs from 'fs';
+import path from 'path';
+import Convert from 'ansi-to-html';
 import { Socket } from 'net';
 import { WebSocket } from 'ws';
-import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
-import { Logger } from './Logger';
+import { Base, BaseSocket, IBaseConnectable } from './Base';
 import { Controller } from './Controller';
 
-export class Base extends EventEmitter {
-  public id: string;
-  public log: Logger;
-
-  constructor(id?: string) {
-    super();
-    this.id = id || uuidv4();
-    this.log = new Logger(`${this.id} (${this.constructor.name})`);
-  }
-}
-
-export interface IBaseConnectable {
-  id: string;
-  log: Logger;
-  ctl: Controller;
-  socket: Socket | WebSocket;
-  prompt?: string;
-  signature?: string;
-  commands: string[];
-  methods: string[];
-  relay?: IBaseConnectable;
-  disconnecting?: boolean;
-
-  write(msg: string, cb?: (err?: Error) => void): void;
-  send(msg: string, keep?: boolean): void;
-  init(commands: string[]): void;
-  ready(): void;
-  reset(): void;
-  // data(data): void;
-  reg(sig: string): void;
-  ping(): void;
-  info(prop: string): void;
-  help(): void;
-  // exit(msg?: string): void;
-  close(hasError: boolean): void;
-  error(err: Error): void
-  disconnect(): void;
-}
-
-export class BaseSocket extends Base implements IBaseConnectable {
+export class WebClient extends Base implements IBaseConnectable {
   public signature?: string;
-  public commands: string[] = ['reg', 'ping', 'info', 'help', 'exit'];
-  public methods: string[] = ['data', 'close', 'error'];
+  public commands: string[] = ['ls', 'use', 'reg', 'ping', 'info', 'help', 'exit'];
+  public methods: string[] = ['message', 'close', 'error'];
   public relay?: IBaseConnectable;
+  public convert: Convert;
   public disconnecting?: boolean;
 
-  constructor(public ctl: Controller, public socket: Socket, public prompt?: string) {
+  constructor(public ctl: Controller, public socket: WebSocket, public prompt?: string) {
     super();
 
-    const forwardEvents = ['data', 'close', 'connect', 'drain', 'end', 'error', 'lookup', 'ready', 'timeout'];
+    this.convert = new Convert();
+
+    const forwardEvents = ['close', 'error', 'message', 'open', 'ping', 'pong', 'upgrade', 'unexpected-response'];
 
     forwardEvents.forEach((e) => {
       this.socket.on(e, (...args) => {
@@ -67,10 +33,13 @@ export class BaseSocket extends Base implements IBaseConnectable {
   }
 
   public write(msg: string, cb?: (err?: Error) => void): void {
-    this.socket.write(msg, cb);
+    this.log.info(`Write msg: ${msg}`);
+    this.socket.send(this.convert.toHtml(msg.toString()), cb);
   }
 
   public send(msg: string, keep = true): void {
+    this.log.info(`Sending msg: ${msg}`);
+
     if (this.prompt) {
       this.write(msg);
 
@@ -97,6 +66,38 @@ export class BaseSocket extends Base implements IBaseConnectable {
     this.send(`[${this.id}] ${this.constructor.name} is ready`);
   }
 
+  public ls(...args: string[]) {
+    const { agents } = this.ctl;
+    const lines = [...args].concat(['Agent List:']);
+
+    if (agents.length) {
+      this.ctl.agents.forEach((agent, index) => {
+        lines.push(`\t[${index}] ${agent.signature} | ${agent.id}`);
+      });
+
+      lines.push('');
+      lines.push(`Select an available agent with: "use [0-${this.ctl.agents.length - 1}]"`);
+    } else {
+      lines.push(`\tNo available agents`);
+    }
+
+    this.send(lines.join(`\n`));
+  }
+
+  public use(target: string) {
+    const index = Number(target);
+
+    if (!isNaN(index) && index >= 0 && index < this.ctl.agents.length) {
+      const agent = this.ctl.agents[index];
+      this.prompt = `${agent.signature}:${this.ctl.prompt} `;
+      this.send(`Using [${index}]: ${agent.signature} | ${agent.id}`);
+      this.relay = agent;
+      agent.relay = this;
+    } else {
+      this.send(`Missing/invalid agent target: ${target}`);
+    }
+  }
+
   public reset(): void {
     this.prompt = this.ctl.prompt;
 
@@ -107,7 +108,7 @@ export class BaseSocket extends Base implements IBaseConnectable {
     }
   }
 
-  public data(data): void {
+  public message(data): void {
     const [cmd, ...args] = data
       .toString()
       .split(' ')
@@ -117,7 +118,7 @@ export class BaseSocket extends Base implements IBaseConnectable {
       if (cmd === 'exit') {
         this.reset();
       } else {
-        this.log.debug(`Relay data: ${data}`, this.relay.signature, this.relay.id);
+        // this.log.debug(`Relay data: ${data}`, this.relay.signature, this.relay.id);
         this.relay.write(data);
 
         if (this.relay.prompt) {
@@ -166,15 +167,15 @@ export class BaseSocket extends Base implements IBaseConnectable {
     this.send(`HELP: Commands: ${this.commands.join(', ')}`);
   }
 
-  public exit(msg = 'Goodbye.'): void {
-    this.send(`${msg}\n`, false);
-    this.socket.destroy();
-  }
+  // public exit(msg = 'Goodbye.'): void {
+  //   this.send(`${msg}\n`, false);
+  //   this.socket.destroy();
+  // }
 
-  public end() {
-    this.log.debug(`Ending`);
-    this.disconnect();
-  }
+  // public end() {
+  //   this.log.debug(`Ending`);
+  //   this.disconnect();
+  // }
 
   public close(hasError: boolean) {
     this.log.debug(`Closing`, { hasError });

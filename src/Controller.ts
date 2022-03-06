@@ -1,10 +1,14 @@
 import 'colors';
+import fs from 'fs';
+import path from 'path';
+import url from 'url';
 import { Server, Socket } from 'net';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer, Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
 import { Base, BaseSocket } from './Base';
 import { Agent } from './Agent';
 import { Client } from './Client';
+import { WebClient } from './WebClient';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_AGENT_PORT = 1111;
@@ -19,6 +23,7 @@ export class Controller extends Base {
 
   public agents: Agent[] = [];
   public clients: Client[] = [];
+  public webClients: WebClient[] = [];
 
   constructor(
     public host = DEFAULT_HOST,
@@ -44,9 +49,7 @@ export class Controller extends Base {
   public init(): void {
     this.log.debug('Controller#init()');
 
-    this.web = new WebServer((req: IncomingMessage, res: WebServerResponse) => {
-      res.end('Hello world!');
-    });
+    this.web = new WebServer(this.connectWebserver.bind(this));
 
     this.wss = new WebSocketServer({ host: this.host, port: 8080 }, () => {
       this.log.info(`Websocket server listening: ${this.host}:8080`);
@@ -71,7 +74,7 @@ export class Controller extends Base {
   }
 
   public handle(): void {
-    this.wss.on('connection', this.connectWeb.bind(this));
+    this.wss.on('connection', this.connectWebsocket.bind(this));
     this.agentServer.on('connection', this.connectAgent.bind(this));
     this.clientServer.on('connection', this.connectClient.bind(this));
   }
@@ -80,12 +83,72 @@ export class Controller extends Base {
     this.log.debug(`${this.agents.length} Agent(s) | ${this.clients.length} Client(s)`);
   }
 
-  public connectWeb(ws: WebSocket): void {
-    ws.on('message', function message(data) {
-      console.log('received: %s', data);
-    });
+  public connectWebserver(req: IncomingMessage, res: WebServerResponse) {
+    console.log(`${req.method} ${req.url}`);
 
-    ws.send('something');
+    if (req.url) {
+      // parse URL
+      // const parsedUrl = url.parse(req.url);
+      // TODO: Future support with https + certs
+      const baseURL =  'http://' + req.headers.host;
+      const parsedUrl = new URL(req.url, baseURL);
+      // extract URL path
+      let pathname = path.join(__dirname, 'public', parsedUrl.pathname);
+      // based on the URL path, extract the file extension. e.g. .js, .doc, ...
+      const ext = path.parse(pathname).ext || '.html';
+      // maps file extension to MIME typere
+      const map = {
+        '.ico': 'image/x-icon',
+        '.html': 'text/html',
+        '.js': 'text/javascript',
+        '.json': 'application/json',
+        '.css': 'text/css',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.wav': 'audio/wav',
+        '.mp3': 'audio/mpeg',
+        '.svg': 'image/svg+xml',
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword'
+      };
+
+      const exist = fs.existsSync(pathname);
+
+      if(!exist) {
+        // if the file is not found, return 404
+        res.statusCode = 404;
+        res.end(`File ${pathname} not found!`);
+        return;
+      }
+
+      // if is a directory search for index file matching the extension
+      if (fs.statSync(pathname).isDirectory()) pathname += `index${ext}`;
+
+      // read file from file system
+      fs.readFile(pathname, function(err, data){
+        if(err){
+          res.statusCode = 500;
+          res.end(`Error getting the file: ${err}.`);
+        } else {
+          // if the file is found, set Content-type and send data
+          res.setHeader('Content-type', map[ext] || 'text/plain' );
+          res.end(data);
+        }
+      });
+    }
+  }
+
+  public connectWebsocket(ws: WebSocket): void {
+    const client = new WebClient(this, ws, this.prompt);
+
+    this.webClients.push(client);
+
+    this.debug();
+    // ws.on('message', function message(data) {
+    //   console.log('received: %s', data);
+    // });
+
+    // ws.send('something');
   }
 
   public connectAgent(socket: Socket): void {
@@ -100,7 +163,7 @@ export class Controller extends Base {
     this.debug();
   }
 
-  public disconnect(target: BaseSocket): void {
+  public disconnect(target: BaseSocket | WebClient): void {
     // this.log.debug(`Disconnecting target: ${target.signature} [${target.id}]`);
 
     if (target instanceof Agent) {
@@ -120,5 +183,9 @@ export class Controller extends Base {
 
   public disconnectClient(client: Client): void {
     this.clients = this.clients.filter((item) => item.id !== client.id);
+  }
+
+  public disconnectWebClient(client: WebClient): void {
+    this.webClients = this.webClients.filter((item) => item.id !== client.id);
   }
 }
