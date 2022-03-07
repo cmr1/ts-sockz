@@ -32,18 +32,25 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public authorized(): void {
+    const msg = `Authorized: ${this.cert.subject.CN}`;
+
+    this.log.success(msg);
+
     if (this.prompt) {
-      this.write(`Authorized: ${this.cert.subject.CN}\n`.green);
+      this.write(`${msg}\n`.green);
     }
 
     this.ready();
   }
 
   public unauthorized(): void {
-    this.log.warn('Unauthorized');
+    const authError = (this.socket as TLSSocket).authorizationError;
+    const errMsg = `Unauthorized: ${this.cert.subject.CN} (${authError})`;
+
+    this.log.error(errMsg);
+
     if (this.prompt) {
-      const errMsg = (this.socket as TLSSocket).authorizationError;
-      this.write(`Unauthorized: ${this.cert.subject.CN} (${errMsg})\n`.red);
+      this.write(`${errMsg}\n`.red);
     }
 
     setTimeout(() => {
@@ -70,10 +77,18 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public init(commands: string[] = [], forwards: string[] = []): void {
-    if (this.isAuthorized) {
-      this.commands = this.commands.concat(commands);
-      this.forwards = this.forwards.concat(forwards);
+    this.commands = this.commands.concat(commands);
+    this.forwards = this.forwards.concat(forwards);
 
+    [...this.commands].concat(this.methods).forEach((cmd) => {
+      if (typeof this[cmd] === 'function') {
+        this.on(cmd, this[cmd].bind(this));
+      } else {
+        this.log.warn(`Cannot autoload method: ${cmd}`);
+      }
+    });
+
+    if (this.isAuthorized) {
       this.forwards.forEach((e) => {
         this.socket.on(e, (...args) => {
           this.log.debug(`Socket.on(${e}) ${args[0]}`, args);
@@ -81,20 +96,9 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
         });
       });
 
-      [...this.commands].concat(this.methods).forEach((cmd) => {
-        if (typeof this[cmd] === 'function') {
-          this.on(cmd, this[cmd].bind(this));
-        } else {
-          this.log.warn(`Cannot autoload method: ${cmd}`);
-        }
-      });
-
-      // this.authorized();
-      // this.ready();
       this.emit('authorized');
     } else {
-      this.unauthorized();
-      // this.emit('unauthorized');
+      this.emit('unauthorized');
     }
   }
 
@@ -195,6 +199,8 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       this.socket.end();
       this.socket.destroy();
     }
+
+    this.disconnect();
   }
 
   public close(hasError: boolean) {

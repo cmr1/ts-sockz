@@ -12,6 +12,7 @@ const rick = 'https://www.youtube.com/watch?v=oHg5SJYRHA0';
 
 export class SockzAgent extends SockzRelay implements ISockzAgent {
   public listener?: boolean;
+  public requireAuthorized = false;
 
   constructor(public ctl: SockzController, public socket: TLSSocket) {
     super(ctl, socket);
