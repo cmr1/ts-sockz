@@ -2,6 +2,7 @@ import 'colors';
 import { UserInfo } from 'os';
 import Convert from 'ansi-to-html';
 import { Socket } from 'net';
+import { TLSSocket, TLSSocketOptions } from 'tls';
 import { WebSocket } from 'ws';
 import { SockzController } from './SockzController';
 
@@ -37,7 +38,7 @@ export interface ISockzBase {
 
 export interface IBaseConnectable extends ISockzBase {
   ctl: SockzController;
-  socket: Socket | WebSocket;
+  socket: TLSSocket | WebSocket;
   prompt?: string;
   signature?: string;
   commands: string[];

@@ -83,8 +83,6 @@ export class SockzController extends SockzBase {
       this.log.info(`Web server listening: ${this.host}:${this.webPort}`);
     });
 
-    // this.agentServer = tls.createServer(this.tlsOptions('server', 'server'), this.connectAgent.bind(this))
-
     this.agentServer.listen(this.agentPort, this.host, () => {
       this.log.info(`SockzAgent server listening: ${this.host}:${this.agentPort}`);
     });
@@ -97,7 +95,7 @@ export class SockzController extends SockzBase {
   public handle(): void {
     this.wss.on('connection', this.connectWebsocket.bind(this));
     this.agentServer.on('secureConnection', this.connectAgent.bind(this));
-    this.clientServer.on('connection', this.connectClient.bind(this));
+    this.clientServer.on('secureConnection', this.connectClient.bind(this));
   }
 
   public debug(): void {
@@ -186,7 +184,7 @@ export class SockzController extends SockzBase {
     this.debug();
   }
 
-  public connectClient(socket: Socket): void {
+  public connectClient(socket: TLSSocket): void {
     const client = new SockzClient(this, socket);
     this.clients.push(client);
     this.debug();

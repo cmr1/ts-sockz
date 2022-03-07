@@ -34,7 +34,7 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
     if (this.socket.authorized) {
       this.log.success(`Authorized`);
-      this.write(`reg ${this.signature}`);
+      // this.write(`reg ${this.signature}`);
     } else {
       this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
     }
@@ -116,19 +116,20 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
     this.signature = `${this.systemInfo?.user.username}@${this.systemInfo?.os.hostname}`;
 
-    this.socket = tls.connect({ ...this.ctl.tlsOptions('client', 'bob'), host: this.ctl.host, port: this.ctl.agentPort }, () => {
+    this.socket = tls.connect({ ...this.ctl.tlsOptions('client', 'alice'), host: this.ctl.host, port: this.ctl.agentPort }, () => {
       this.log.info(`SockzAgent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
+      this.write(`reg ${this.signature}`);
 
-      const cert = this.socket.getPeerCertificate();
+      // const cert = this.socket.getPeerCertificate();
 
-      this.log.info(`Cert info`, cert);
+      // this.log.info(`Cert info`, cert);
 
-      if (this.socket.authorized) {
-        this.log.success(`Authorized`);
-        this.write(`reg ${this.signature}`);
-      } else {
-        this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
-      }
+      // if (this.socket.authorized) {
+      //   this.log.success(`Authorized`);
+      //   this.write(`reg ${this.signature}`);
+      // } else {
+      //   this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
+      // }
     });
 
     // const conn = this.socket.connect({ ...this.ctl.tlsOptions('client', 'alice'), port: this.ctl.agentPort, host: this.ctl.host }, () => {

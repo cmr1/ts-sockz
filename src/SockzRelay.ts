@@ -1,6 +1,7 @@
 import 'colors';
 import Convert from 'ansi-to-html';
 import { Socket } from 'net';
+import { TLSSocket } from 'tls';
 import { WebSocket } from 'ws';
 import { IBaseConnectable } from './contracts';
 import { SockzBase } from './SockzBase';
@@ -15,7 +16,7 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   public disconnecting?: boolean;
   public convert: Convert;
 
-  constructor(public ctl: SockzController, public socket: Socket | WebSocket, public prompt?: string) {
+  constructor(public ctl: SockzController, public socket: TLSSocket | WebSocket, public prompt?: string) {
     super();
 
     this.convert = new Convert();
@@ -60,7 +61,23 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       }
     });
 
+    this.debug();
     this.ready();
+  }
+
+  public debug(): void {
+    if (this.socket instanceof TLSSocket) {
+      const cert = this.socket.getPeerCertificate();
+
+      this.log.info(`Cert info`, cert);
+
+      if (this.socket.authorized) {
+        this.log.success(`Authorized`);
+        // this.write(`reg ${this.signature}`);
+      } else {
+        this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
+      }
+    }
   }
 
   public ready(): void {

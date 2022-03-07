@@ -1,11 +1,12 @@
 import 'colors';
 import { Socket } from 'net';
+import { TLSSocket } from 'tls';
 import { ISockzClient } from './contracts';
 import { SockzController } from './SockzController';
 import { SockzRelay } from './SockzRelay';
 
 export class SockzClient extends SockzRelay implements ISockzClient {
-  constructor(public ctl: SockzController, public socket: Socket) {
+  constructor(public ctl: SockzController, public socket: TLSSocket) {
     super(ctl, socket, ctl.prompt);
   }
 
