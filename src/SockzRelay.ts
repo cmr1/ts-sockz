@@ -9,7 +9,7 @@ import { SockzController } from './SockzController';
 
 export class SockzRelay extends SockzBase implements IBaseConnectable {
   public signature?: string;
-  public commands: string[] = ['reg', 'exit', 'ping', 'info', 'help'];
+  public commands: string[] = ['reg', 'whoami', 'exit', 'ping', 'info', 'help'];
   public forwards: string[] = ['data', 'close', 'error'];
   public methods: string[] = ['data', 'close', 'error', 'authorized', 'unauthorized'];
   public relay?: IBaseConnectable;
@@ -187,6 +187,10 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       this.log.warn(`Cannot register without signature!`, sig);
       this.send(`Cannot register without signature!`);
     }
+  }
+
+  public whoami(): void {
+    this.send(this.client.signature || this.signature || 'Unknown');
   }
 
   public ping(): void {

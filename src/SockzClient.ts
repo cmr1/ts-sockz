@@ -1,6 +1,6 @@
 import 'colors';
 // import { Socket } from 'net';
-import tls, { TLSSocket, TLSSocketOptions } from 'tls';
+import tls, { PeerCertificate, TLSSocket, TLSSocketOptions } from 'tls';
 import { ISockzClient } from './contracts';
 import { SockzController } from './SockzController';
 import { SockzRelay } from './SockzRelay';
@@ -43,9 +43,9 @@ export class SockzClient extends SockzRelay implements ISockzClient {
     // );
   }
 
-  public authorize(client: SockzRelay, key: Buffer | string, cert: Buffer | string): Promise<boolean> {
+  public authorize(client: SockzRelay, key: Buffer | string, cert: Buffer | string): Promise<string | null> {
     this.client = client;
-    this.signature = `sockz:client`;
+    // this.signature = `sockz:client`;
 
     const tlsOptions: TLSSocketOptions = {
       key,
@@ -58,13 +58,19 @@ export class SockzClient extends SockzRelay implements ISockzClient {
       try {
         this.socket = tls.connect({ ...tlsOptions, host: this.ctl.host, port: this.ctl.clientPort }, () => {
           this.log.info(`SockzClient connected to controller: ${this.ctl.host}:${this.ctl.clientPort}`);
+
+          const cert = this.socket.getCertificate() as PeerCertificate;
+
+          this.signature = cert.subject.CN;
+
           this.init();
+          // this.reg(this.signature);
           this.write(`reg ${this.signature}`);
-          resolve(true);
+          resolve(this.signature);
         });
       } catch (err) {
         this.log.error(err);
-        resolve(false);
+        resolve(null);
       }
     });
   }
