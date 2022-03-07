@@ -87,6 +87,7 @@ $(function(){
   $(document).on('keyup', function(event) {
     // Bail unless clientAuth exists
     if (!clientAuth) return;
+
     // if (event.altKey || event.ctrlKey || event.shiftKey) {
     //   console.log('Handle modified keyup', event);
     // } else {
@@ -104,8 +105,10 @@ $(function(){
           scroll();
           break;
         case 'Backspace':
-          $(this).find('pre').text($(this).find('pre').text().slice(0, -1));
-          buff.pop();
+          if (buff.length) {
+            $(this).find('pre').html($(this).find('pre').html().slice(0, -1));
+            buff.pop();
+          }
           break;
         default:
           $(this).find('pre').append(event.key);

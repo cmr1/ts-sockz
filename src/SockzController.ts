@@ -118,7 +118,16 @@ export class SockzController extends SockzBase {
   public connectWebserver(req: IncomingMessage, res: WebServerResponse) {
     console.log(`${req.method} ${req.url}`);
 
-    const replacements = ['host', 'webPort', 'wssPort'];
+    const { host, clientPort, agentPort, webPort, wssPort } = this;
+
+    const replacements = {
+      // TODO: Bind host VS external host? i.e. BIND=0.0.0.0 | HOST=localhost
+      host: host === '0.0.0.0' ? 'localhost' : 'host',
+      clientPort,
+      agentPort,
+      webPort,
+      wssPort
+    };
 
     if (req.url) {
       // parse URL
@@ -166,8 +175,8 @@ export class SockzController extends SockzBase {
         } else {
           let content = data.toString();
 
-          replacements.forEach((key) => {
-            content = content.replace(`{{${key}}}`, this[key]);
+          Object.keys(replacements).forEach((key) => {
+            content = content.replace(`{{${key}}}`, replacements[key]);
           });
 
           // if the file is found, set Content-type and send data
