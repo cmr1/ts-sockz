@@ -2,7 +2,7 @@ import 'colors';
 import { UserInfo } from 'os';
 import Convert from 'ansi-to-html';
 import { Socket } from 'net';
-import { TLSSocket, TLSSocketOptions } from 'tls';
+import { TLSSocket, TLSSocketOptions, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
 import { SockzController } from './SockzController';
 
@@ -47,7 +47,13 @@ export interface IBaseConnectable extends ISockzBase {
   relay?: IBaseConnectable;
   disconnecting?: boolean;
   convert: Convert;
+  requireAuthorized?: boolean;
 
+  get cert(): PeerCertificate;
+  get isAuthorized(): boolean;
+
+  authorized(): void;
+  unauthorized(): void;
   write(msg: string, cb?: (err?: Error) => void): void;
   send(msg: string, keep?: boolean): void;
   init(commands?: string[], forwards?: string[]): void;

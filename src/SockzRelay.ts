@@ -1,7 +1,7 @@
 import 'colors';
 import Convert from 'ansi-to-html';
 import { Socket } from 'net';
-import { TLSSocket } from 'tls';
+import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
 import { IBaseConnectable } from './contracts';
 import { SockzBase } from './SockzBase';
@@ -11,15 +11,44 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   public signature?: string;
   public commands: string[] = ['reg', 'exit', 'ping', 'info', 'help'];
   public forwards: string[] = ['data', 'close', 'error'];
-  public methods: string[] = ['data', 'close', 'error'];
+  public methods: string[] = ['data', 'close', 'error', 'authorized', 'unauthorized'];
   public relay?: IBaseConnectable;
   public disconnecting?: boolean;
   public convert: Convert;
+  public requireAuthorized = false;
 
   constructor(public ctl: SockzController, public socket: TLSSocket | WebSocket, public prompt?: string) {
     super();
 
     this.convert = new Convert();
+  }
+
+  public get cert(): PeerCertificate {
+    return (this.socket as TLSSocket).getPeerCertificate();
+  }
+
+  public get isAuthorized(): boolean {
+    return !this.requireAuthorized || (this.socket instanceof TLSSocket && this.socket.authorized);
+  }
+
+  public authorized(): void {
+    if (this.prompt) {
+      this.write(`Authorized: ${this.cert.subject.CN}\n`.green);
+    }
+
+    this.ready();
+  }
+
+  public unauthorized(): void {
+    this.log.warn('Unauthorized');
+    if (this.prompt) {
+      const errMsg = (this.socket as TLSSocket).authorizationError;
+      this.write(`Unauthorized: ${this.cert.subject.CN} (${errMsg})\n`.red);
+    }
+
+    setTimeout(() => {
+      this.exit();
+    }, 1000);
   }
 
   public write(msg: string, cb?: (err?: Error) => void): void {
@@ -41,45 +70,45 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public init(commands: string[] = [], forwards: string[] = []): void {
-    this.commands = this.commands.concat(commands);
-    this.forwards = this.forwards.concat(forwards);
+    if (this.isAuthorized) {
+      this.commands = this.commands.concat(commands);
+      this.forwards = this.forwards.concat(forwards);
 
-    this.forwards.forEach((e) => {
-      this.socket.on(e, (...args) => {
-        this.log.debug(`Socket.on(${e}) ${args[0]}`, args);
-        this.emit(e, ...args);
+      this.forwards.forEach((e) => {
+        this.socket.on(e, (...args) => {
+          this.log.debug(`Socket.on(${e}) ${args[0]}`, args);
+          this.emit(e, ...args);
+        });
       });
-    });
 
-    [...this.commands].concat(this.methods).forEach((cmd) => {
-      if (typeof this[cmd] === 'function') {
-        this.on(cmd, this[cmd].bind(this));
-      } else {
-        this.log.warn(`Cannot autoload method: ${cmd}`);
-      }
-    });
+      [...this.commands].concat(this.methods).forEach((cmd) => {
+        if (typeof this[cmd] === 'function') {
+          this.on(cmd, this[cmd].bind(this));
+        } else {
+          this.log.warn(`Cannot autoload method: ${cmd}`);
+        }
+      });
 
-    this.debug();
-    this.ready();
+      // this.authorized();
+      // this.ready();
+      this.emit('authorized');
+    } else {
+      this.unauthorized();
+      // this.emit('unauthorized');
+    }
   }
 
   public debug(): void {
     if (this.socket instanceof TLSSocket) {
       const cert = this.socket.getPeerCertificate();
 
-      this.log.info(`Cert info`, cert);
-
-      if (this.socket.authorized) {
-        this.log.success(`Authorized`);
-        // this.write(`reg ${this.signature}`);
-      } else {
-        this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
-      }
+      this.log.debug(`Cert info`, cert);
     }
   }
 
   public ready(): void {
     this.send(`[${this.id}] ${this.constructor.name} is ready`);
+    this.debug();
   }
 
   public showPrompt(): void {
@@ -163,6 +192,7 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
     this.send(`${msg}\n`, false);
 
     if (this.socket instanceof Socket) {
+      this.socket.end();
       this.socket.destroy();
     }
   }
