@@ -1,7 +1,7 @@
 $(function(){
   let buff = [];
-  let socket = new WebSocket("wss://{{host}}:{{webPort}}");
-  let clientKey, clientCert, clientAuth;
+  // let socket = new WebSocket("wss://{{host}}:{{webPort}}");
+  let socket, clientKey, clientCert, clientAuth;
 
   clientKey = localStorage.getItem('clientKey');
   clientCert = localStorage.getItem('clientCert');
@@ -26,7 +26,59 @@ $(function(){
     elem.scrollTop = elem.scrollHeight;
   }
 
+  function connect() {
+    socket = new WebSocket("wss://{{host}}:{{webPort}}");
+
+    socket.onopen = function(e) {
+      console.debug("[open] Connection established");
+
+      if (clientKey && clientCert && !clientAuth) {
+        auth(clientKey, clientCert);
+      }
+    };
+
+    socket.onmessage = function(event) {
+      console.debug(`[message] Data received from server: ${event.data}`);
+
+      if (clientAuth) {
+        $(document).find('pre').append(event.data);
+        scroll();
+      } else {
+        $('#message').html(event.data);
+        const msg = $('#message').text().trim();
+
+        console.log('PRE AUTH MSG', msg);
+
+        if (/^Authorized: (.*)$/.test(msg)) {
+          console.log('Authorized!');
+          clientAuth = msg;
+          $('#console').show();
+        } else {
+          console.warn('Unauthorized:', msg);
+        }
+      }
+    };
+
+    socket.onclose = function(event) {
+      exit();
+
+      if (event.wasClean) {
+        console.debug(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+      } else {
+        // e.g. server process killed or network down
+        // event.code is usually 1006 in this case
+        console.debug('[close] Connection died');
+      }
+    };
+
+    socket.onerror = function(error) {
+      console.debug(`[error] ${error.message}`);
+    };
+  }
+
   function auth(key, cert) {
+    if (!socket) return connect();
+
     clientKey = key;
     clientCert = cert;
 
@@ -41,48 +93,62 @@ $(function(){
     socket.send(`auth:${btoa(clientKey)}:${btoa(clientCert)}`);
   }
 
-  socket.onopen = function(e) {
-    console.debug("[open] Connection established");
+  function exit() {
+    socket = null;
+    clientKey = null;
+    clientCert = null;
+    clientAuth = null;
 
-    if (clientKey && clientCert && !clientAuth) {
-      auth(clientKey, clientCert);
-    }
-  };
+    $('#console').hide();
+  }
 
-  socket.onmessage = function(event) {
-    console.debug(`[message] Data received from server: ${event.data}`);
+  connect();
 
-    if (clientAuth) {
-      $(document).find('pre').append(event.data);
-      scroll();
-    } else {
-      $('#message').html(event.data);
-      const msg = $('#message').text().trim();
+  // socket.onopen = function(e) {
+  //   console.debug("[open] Connection established");
 
-      console.log('PRE AUTH MSG', msg);
+  //   if (clientKey && clientCert && !clientAuth) {
+  //     auth(clientKey, clientCert);
+  //   }
+  // };
 
-      if (/^Authorized: (.*)$/.test(msg)) {
-        console.log('Authorized!');
-        clientAuth = msg;
-      } else {
-        console.warn('Unauthorized:', msg);
-      }
-    }
-  };
+  // socket.onmessage = function(event) {
+  //   console.debug(`[message] Data received from server: ${event.data}`);
 
-  socket.onclose = function(event) {
-    if (event.wasClean) {
-      console.debug(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-    } else {
-      // e.g. server process killed or network down
-      // event.code is usually 1006 in this case
-      console.debug('[close] Connection died');
-    }
-  };
+  //   if (clientAuth) {
+  //     $(document).find('pre').append(event.data);
+  //     scroll();
+  //   } else {
+  //     $('#message').html(event.data);
+  //     const msg = $('#message').text().trim();
 
-  socket.onerror = function(error) {
-    console.debug(`[error] ${error.message}`);
-  };
+  //     console.log('PRE AUTH MSG', msg);
+
+  //     if (/^Authorized: (.*)$/.test(msg)) {
+  //       console.log('Authorized!');
+  //       clientAuth = msg;
+  //       $('#console').show();
+  //     } else {
+  //       console.warn('Unauthorized:', msg);
+  //     }
+  //   }
+  // };
+
+  // socket.onclose = function(event) {
+  //   exit();
+
+  //   if (event.wasClean) {
+  //     console.debug(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+  //   } else {
+  //     // e.g. server process killed or network down
+  //     // event.code is usually 1006 in this case
+  //     console.debug('[close] Connection died');
+  //   }
+  // };
+
+  // socket.onerror = function(error) {
+  //   console.debug(`[error] ${error.message}`);
+  // };
 
   $(document).on('keyup', function(event) {
     // Bail unless clientAuth exists

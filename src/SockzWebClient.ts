@@ -33,6 +33,11 @@ export class SockzWebClient extends SockzRelay implements ISockzClient {
                 this.log.debug(`Nested client data: ${data}`);
                 this.write(data);
               });
+
+              this.client.socket.on('close', (hasError: boolean) => {
+                this.log.debug(`Linked client exited.`, { hasError });
+                this.exit('Connection closed.');
+              });
             } else {
               this.write(`Invalid credentials\n`.red);
             }

@@ -176,7 +176,7 @@ export class SockzController extends SockzBase {
           let content = data.toString();
 
           Object.keys(replacements).forEach((key) => {
-            content = content.replace(`{{${key}}}`, replacements[key]);
+            content = content.replace(new RegExp(`{{${key}}}`, 'g'), replacements[key]);
           });
 
           // if the file is found, set Content-type and send data

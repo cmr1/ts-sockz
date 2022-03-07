@@ -213,12 +213,14 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public exit(msg = 'Goodbye.'): void {
-    this.log.debug('Exiting');
+    this.log.debug(`Exiting: ${msg}`);
     this.send(`${msg}\n`, false);
 
     if (this.socket instanceof Socket) {
       this.socket.end();
       this.socket.destroy();
+    } else if (this.socket instanceof WebSocket) {
+      this.socket.close();
     }
 
     this.disconnect();
