@@ -1,8 +1,8 @@
 import 'colors';
 import { UserInfo } from 'os';
 import Convert from 'ansi-to-html';
-import { Socket } from 'net';
-import { TLSSocket, TLSSocketOptions, PeerCertificate } from 'tls';
+// import { Socket } from 'net';
+import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
 import { SockzController } from './SockzController';
 

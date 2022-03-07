@@ -1,5 +1,5 @@
 import 'colors';
-import { Socket } from 'net';
+// import { Socket } from 'net';
 import { TLSSocket } from 'tls';
 import { ISockzClient } from './contracts';
 import { SockzController } from './SockzController';

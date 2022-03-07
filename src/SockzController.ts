@@ -2,7 +2,7 @@ import 'colors';
 import fs from 'fs';
 import path from 'path';
 import { Socket } from 'net';
-import tls, { Server, TLSSocket, TLSSocketOptions } from 'tls';
+import { Server, TLSSocket, TLSSocketOptions } from 'tls';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
 import { SockzBase } from './SockzBase';
@@ -39,16 +39,16 @@ export class SockzController extends SockzBase {
     super();
   }
 
-  public tlsOptions(dir, name): TLSSocketOptions {
-    const certsDir = path.join(__dirname, '..', 'tmp', 'certs');
+  public tlsOptions(name): TLSSocketOptions {
+    const certsDir = path.join(__dirname, '..', 'certs');
 
     return {
-      key: fs.readFileSync(path.join(certsDir, dir, `${name}_key.pem`)),
-      cert: fs.readFileSync(path.join(certsDir, dir, `${name}_cert.pem`)),
-      ca: [fs.readFileSync(path.join(certsDir, dir, `${name}_cert.pem`))],
+      key: fs.readFileSync(path.join(certsDir, `${name}_key.pem`)),
+      cert: fs.readFileSync(path.join(certsDir, `${name}_cert.pem`)),
+      ca: [fs.readFileSync(path.join(certsDir, `server_cert.pem`))],
       requestCert: true,
       rejectUnauthorized: false
-    }
+    };
   }
 
   public startAgent(): void {
@@ -72,8 +72,8 @@ export class SockzController extends SockzBase {
       this.log.info(`Websocket server listening: ${this.host}:${this.wssPort}`);
     });
 
-    this.agentServer = new Server(this.tlsOptions('server', 'server'));
-    this.clientServer = new Server(this.tlsOptions('server', 'server'));
+    this.agentServer = new Server(this.tlsOptions('server'));
+    this.clientServer = new Server(this.tlsOptions('server'));
   }
 
   public listen(): void {
@@ -151,7 +151,7 @@ export class SockzController extends SockzBase {
         } else {
           let content = data.toString();
 
-          replacements.forEach(key => {
+          replacements.forEach((key) => {
             content = content.replace(`{{${key}}}`, this[key]);
           });
 

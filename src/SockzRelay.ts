@@ -266,11 +266,7 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       relay.systemInfo.cwd = cwd;
     }
 
-    const promptParts = [
-      relay.signature?.cyan,
-      cwd?.yellow || relay.systemInfo?.cwd.yellow,
-      this.ctl.prompt
-    ];
+    const promptParts = [relay.signature?.cyan, cwd?.yellow || relay.systemInfo?.cwd.yellow, this.ctl.prompt];
 
     this.prompt = promptParts.join(':');
   }
