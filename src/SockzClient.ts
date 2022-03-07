@@ -54,7 +54,7 @@ export class SockzClient extends SockzRelay implements ISockzClient {
       rejectUnauthorized: false
     };
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       try {
         this.socket = tls.connect({ ...tlsOptions, host: this.ctl.host, port: this.ctl.clientPort }, () => {
           this.log.info(`SockzClient connected to controller: ${this.ctl.host}:${this.ctl.clientPort}`);

@@ -24,7 +24,7 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
   public registered(): void {
     this.ctl.clients.forEach(this.notify.bind(this));
-    this.ctl.webClients.filter(client => client.isAuthorized).forEach(this.notify.bind(this));
+    this.ctl.webClients.filter((client) => client.isAuthorized).forEach(this.notify.bind(this));
   }
 
   public notify(client: SockzRelay): void {
