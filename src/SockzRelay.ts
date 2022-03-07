@@ -20,8 +20,6 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
     super();
 
     this.convert = new Convert();
-
-    this.init();
   }
 
   public write(msg: string, cb?: (err?: Error) => void): void {

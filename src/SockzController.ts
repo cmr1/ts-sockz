@@ -54,8 +54,6 @@ export class SockzController extends SockzBase {
   public startAgent(): void {
     const socket = new Socket();
     const agent = new SockzAgent(this, new TLSSocket(socket));
-    // const agent = new SockzAgent(this, new TLSSocket(socket, this.tlsOptions('client', 'alice')));
-    // const socket = tls.connect({ ...this.tlsOptions('client', 'alice'), host: this.host, port: this.agentPort });
     agent.start();
   }
 
@@ -167,7 +165,7 @@ export class SockzController extends SockzBase {
 
   public connectWebsocket(ws: WebSocket): void {
     const client = new SockzWebClient(this, ws);
-
+    client.init();
     this.webClients.push(client);
 
     this.debug();
@@ -180,12 +178,14 @@ export class SockzController extends SockzBase {
 
   public connectAgent(socket: TLSSocket): void {
     const agent = new SockzAgent(this, socket);
+    agent.init();
     this.agents.push(agent);
     this.debug();
   }
 
   public connectClient(socket: TLSSocket): void {
     const client = new SockzClient(this, socket);
+    client.init();
     this.clients.push(client);
     this.debug();
   }

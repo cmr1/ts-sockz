@@ -18,26 +18,12 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
   }
 
   public init(): void {
-    super.init();
+    super.init(['registered']);
+  }
 
-    this.on('registered', () => {
-      this.ctl.clients.forEach(this.notify.bind(this));
-      this.ctl.webClients.forEach(this.notify.bind(this));
-
-    });
-
-    // this.log.info(this.socket);
-
-    const cert = this.socket.getPeerCertificate();
-
-    this.log.info(`Cert info`, cert);
-
-    if (this.socket.authorized) {
-      this.log.success(`Authorized`);
-      // this.write(`reg ${this.signature}`);
-    } else {
-      this.log.error(`Unauthorized: ${this.socket.authorizationError}`);
-    }
+  public registered(): void {
+    this.ctl.clients.forEach(this.notify.bind(this));
+    this.ctl.webClients.forEach(this.notify.bind(this));
   }
 
   public notify(client: SockzRelay): void {
@@ -118,6 +104,7 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
     this.socket = tls.connect({ ...this.ctl.tlsOptions('client', 'alice'), host: this.ctl.host, port: this.ctl.agentPort }, () => {
       this.log.info(`SockzAgent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
+      this.init();
       this.write(`reg ${this.signature}`);
 
       // const cert = this.socket.getPeerCertificate();
