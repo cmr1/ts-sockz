@@ -48,6 +48,8 @@ export interface IBaseConnectable extends ISockzBase {
   disconnecting?: boolean;
   convert: Convert;
   requireAuthorized?: boolean;
+  clientAuthorized?: boolean;
+  client: IBaseConnectable;
 
   get cert(): PeerCertificate | undefined;
   get isAuthorized(): boolean;
@@ -75,12 +77,13 @@ export interface IBaseConnectable extends ISockzBase {
 export interface ISockzClient {
   ls(...args: string[]): void;
   use(target: string): void;
+  start(): void;
 }
 
 export interface ISockzAgent {
   handle(action: string): void;
-  start(): void;
   notify(client: IBaseConnectable): void;
+  start(): void;
 }
 
 export enum SockzLogTextColor {

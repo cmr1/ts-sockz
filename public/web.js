@@ -1,6 +1,33 @@
 $(function(){
   let buff = [];
-  let socket = new WebSocket("ws://{{host}}:{{wssPort}}");
+  let socket = new WebSocket("wss://{{host}}:{{webPort}}");
+  let clientKey, clientCert;
+
+  clientKey = localStorage.getItem('clientKey');
+  clientCert = localStorage.getItem('clientCert');
+
+  if (clientKey) {
+    $('#clientKey').val(clientKey);
+  }
+
+  if (clientCert) {
+    $('#clientCert').val(clientCert);
+  }
+
+  $('#authorize').on('click', function() {
+    clientKey = $('#clientKey').val();
+    clientCert = $('#clientCert').val();
+
+    console.log('Auth with', {
+      clientKey,
+      clientCert,
+    });
+
+    localStorage.setItem('clientKey', clientKey);
+    localStorage.setItem('clientCert', clientCert);
+
+    socket.send(`auth:${btoa(clientKey)}:${btoa(clientCert)}`);
+  });
 
   function scroll() {
     var elem = document.getElementById('console');

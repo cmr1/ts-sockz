@@ -4,7 +4,8 @@ import path from 'path';
 import { Socket } from 'net';
 import { Server, TLSSocket, TLSSocketOptions } from 'tls';
 import { WebSocketServer, WebSocket } from 'ws';
-import { Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
+import { IncomingMessage, ServerResponse as WebServerResponse } from 'http';
+import { Server as WebServer } from 'https';
 import { SockzBase } from './SockzBase';
 import { SockzRelay } from './SockzRelay';
 import { SockzAgent } from './SockzAgent';
@@ -44,6 +45,13 @@ export class SockzController extends SockzBase {
 
     /**
      * TODO: Certs from: server, agent+(any), client+(signed)
+     * - serverKey
+     * - serverCert
+     * - clientKey?
+     * - clientCert?
+     * - agentKey?
+     * - agentCert?
+     * - reject?
      */
     return {
       key: fs.readFileSync(path.join(certsDir, `${name}_key.pem`)),
@@ -60,6 +68,13 @@ export class SockzController extends SockzBase {
     agent.start();
   }
 
+  public startClient(quiet?: boolean): SockzClient {
+    const socket = new Socket();
+    const client = new SockzClient(this, new TLSSocket(socket), quiet);
+    client.start();
+    return client;
+  }
+
   public startServer(): void {
     this.init();
     this.listen();
@@ -69,9 +84,9 @@ export class SockzController extends SockzBase {
   public init(): void {
     this.log.debug('SockzController#init()');
 
-    this.web = new WebServer(this.connectWebserver.bind(this));
+    this.web = new WebServer(this.tlsOptions('server'), this.connectWebserver.bind(this));
 
-    this.wss = new WebSocketServer({ host: this.host, port: this.wssPort }, () => {
+    this.wss = new WebSocketServer({ server: this.web }, () => {
       this.log.info(`Websocket server listening: ${this.host}:${this.wssPort}`);
     });
 
@@ -168,7 +183,7 @@ export class SockzController extends SockzBase {
 
   public connectWebsocket(ws: WebSocket): void {
     const client = new SockzWebClient(this, ws);
-    client.init();
+    // client.init();
     this.webClients.push(client);
 
     this.debug();

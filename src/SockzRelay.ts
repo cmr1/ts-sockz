@@ -15,11 +15,14 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   public relay?: IBaseConnectable;
   public disconnecting?: boolean;
   public convert: Convert;
+  public client: IBaseConnectable;
   public requireAuthorized = false;
+  public clientAuthorized = false;
 
   constructor(public ctl: SockzController, public socket: TLSSocket | WebSocket, public prompt?: string) {
     super();
 
+    this.client = this;
     this.convert = new Convert();
   }
 
@@ -28,7 +31,13 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public get isAuthorized(): boolean {
-    return !this.requireAuthorized || (this.socket instanceof TLSSocket && this.socket.authorized);
+    if (this.socket instanceof TLSSocket) {
+      return !this.requireAuthorized || this.socket.authorized;
+    } else if (this.socket instanceof WebSocket) {
+      return this.clientAuthorized;
+    }
+
+    return false;
   }
 
   public authorized(): void {
@@ -54,9 +63,9 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       this.write(`${errMsg}\n`.red);
     }
 
-    setTimeout(() => {
-      this.exit();
-    }, 1000);
+    // setTimeout(() => {
+    //   this.exit();
+    // }, 1000);
   }
 
   public write(msg: string, cb?: (err?: Error) => void): void {
@@ -68,12 +77,16 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public send(msg: string, keep = true): void {
+    this.log.debug(`Sending: ${msg}`, { keep });
+
     if (this.prompt) {
       this.write(msg);
 
       if (keep) {
         this.write(`\n${this.prompt}`);
       }
+    } else {
+      this.log.debug(`NO PROMPT - Skipping full "send" output`);
     }
   }
 
@@ -108,6 +121,8 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       const cert = this.socket.getPeerCertificate();
 
       this.log.debug(`Cert info`, cert);
+    } else if (this.socket instanceof WebSocket) {
+      // const cert = this.socket.auth
     }
   }
 
@@ -194,6 +209,7 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public exit(msg = 'Goodbye.'): void {
+    this.log.debug('Exiting');
     this.send(`${msg}\n`, false);
 
     if (this.socket instanceof Socket) {
@@ -230,6 +246,8 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   public ls(...args: string[]) {
     const { agents } = this.ctl;
     const lines = [...args].concat(['SockzAgent List:'.underline]);
+
+    this.log.info(`Running list command...`);
 
     if (agents.length) {
       this.ctl.agents.forEach((agent, index) => {
