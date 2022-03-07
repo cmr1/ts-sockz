@@ -1,7 +1,7 @@
 $(function(){
   let buff = [];
   let socket = new WebSocket("wss://{{host}}:{{webPort}}");
-  let clientKey, clientCert;
+  let clientKey, clientCert, clientAuth;
 
   clientKey = localStorage.getItem('clientKey');
   clientCert = localStorage.getItem('clientCert');
@@ -18,6 +18,18 @@ $(function(){
     clientKey = $('#clientKey').val();
     clientCert = $('#clientCert').val();
 
+    auth(clientKey, clientCert);
+  });
+
+  function scroll() {
+    var elem = document.getElementById('console');
+    elem.scrollTop = elem.scrollHeight;
+  }
+
+  function auth(key, cert) {
+    clientKey = key;
+    clientCert = cert;
+
     console.log('Auth with', {
       clientKey,
       clientCert,
@@ -27,21 +39,35 @@ $(function(){
     localStorage.setItem('clientCert', clientCert);
 
     socket.send(`auth:${btoa(clientKey)}:${btoa(clientCert)}`);
-  });
-
-  function scroll() {
-    var elem = document.getElementById('console');
-    elem.scrollTop = elem.scrollHeight;
   }
 
   socket.onopen = function(e) {
     console.debug("[open] Connection established");
+
+    if (clientKey && clientCert && !clientAuth) {
+      auth(clientKey, clientCert);
+    }
   };
 
   socket.onmessage = function(event) {
     console.debug(`[message] Data received from server: ${event.data}`);
-    $(document).find('pre').append(event.data);
-    scroll();
+
+    if (clientAuth) {
+      $(document).find('pre').append(event.data);
+      scroll();
+    } else {
+      $('#message').html(event.data);
+      const msg = $('#message').text().trim();
+
+      console.log('PRE AUTH MSG', msg);
+
+      if (/^Authorized: (.*)$/.test(msg)) {
+        console.log('Authorized!');
+        clientAuth = msg;
+      } else {
+        console.warn('Unauthorized:', msg);
+      }
+    }
   };
 
   socket.onclose = function(event) {
@@ -59,6 +85,8 @@ $(function(){
   };
 
   $(document).on('keyup', function(event) {
+    // Bail unless clientAuth exists
+    if (!clientAuth) return;
     // if (event.altKey || event.ctrlKey || event.shiftKey) {
     //   console.log('Handle modified keyup', event);
     // } else {

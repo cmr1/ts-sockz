@@ -85,11 +85,7 @@ export class SockzController extends SockzBase {
     this.log.debug('SockzController#init()');
 
     this.web = new WebServer(this.tlsOptions('server'), this.connectWebserver.bind(this));
-
-    this.wss = new WebSocketServer({ server: this.web }, () => {
-      this.log.info(`Websocket server listening: ${this.host}:${this.wssPort}`);
-    });
-
+    this.wss = new WebSocketServer({ server: this.web });
     this.agentServer = new Server(this.tlsOptions('server'));
     this.clientServer = new Server(this.tlsOptions('server'));
   }
@@ -97,6 +93,7 @@ export class SockzController extends SockzBase {
   public listen(): void {
     this.web.listen(this.webPort, this.host, () => {
       this.log.info(`Web server listening: ${this.host}:${this.webPort}`);
+      this.log.info(`Websocket server listening: ${this.host}:${this.webPort}`);
     });
 
     this.agentServer.listen(this.agentPort, this.host, () => {
