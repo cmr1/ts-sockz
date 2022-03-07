@@ -33,6 +33,8 @@ export class SockzWebClient extends SockzRelay implements ISockzClient {
                 this.log.debug(`Nested client data: ${data}`);
                 this.write(data);
               });
+            } else {
+              this.write(`Invalid credentials\n`.red);
             }
           })
           .catch(this.log.error.bind(this));
