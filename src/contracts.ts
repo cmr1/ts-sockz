@@ -49,7 +49,7 @@ export interface IBaseConnectable extends ISockzBase {
   convert: Convert;
   requireAuthorized?: boolean;
 
-  get cert(): PeerCertificate;
+  get cert(): PeerCertificate | undefined;
   get isAuthorized(): boolean;
 
   authorized(): void;

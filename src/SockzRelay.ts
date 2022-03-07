@@ -23,8 +23,8 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
     this.convert = new Convert();
   }
 
-  public get cert(): PeerCertificate {
-    return (this.socket as TLSSocket).getPeerCertificate();
+  public get cert(): PeerCertificate | undefined {
+    return this.socket instanceof TLSSocket ? this.socket.getPeerCertificate() : undefined;
   }
 
   public get isAuthorized(): boolean {
@@ -32,7 +32,7 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public authorized(): void {
-    const msg = `Authorized: ${this.cert.subject.CN}`;
+    const msg = `Authorized: ${this.cert?.subject.CN}`;
 
     this.log.success(msg);
 
@@ -45,9 +45,10 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
 
   public unauthorized(): void {
     const authError = (this.socket as TLSSocket).authorizationError;
-    const errMsg = `Unauthorized: ${this.cert.subject.CN} (${authError})`;
+    const errMsg = `Unauthorized: ${this.cert?.subject.CN} (${authError})`;
 
     this.log.error(errMsg);
+    this.debug();
 
     if (this.prompt) {
       this.write(`${errMsg}\n`.red);

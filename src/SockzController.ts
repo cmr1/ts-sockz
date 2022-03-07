@@ -42,6 +42,9 @@ export class SockzController extends SockzBase {
   public tlsOptions(name): TLSSocketOptions {
     const certsDir = path.join(__dirname, '..', 'certs');
 
+    /**
+     * TODO: Certs from: server, agent+(any), client+(signed)
+     */
     return {
       key: fs.readFileSync(path.join(certsDir, `${name}_key.pem`)),
       cert: fs.readFileSync(path.join(certsDir, `${name}_cert.pem`)),
