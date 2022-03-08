@@ -116,7 +116,7 @@ export class SockzController extends SockzBase {
   }
 
   public connectWebserver(req: IncomingMessage, res: WebServerResponse) {
-    console.log(`${req.method} ${req.url}`);
+    this.log.info(`${req.method} ${req.url}`);
 
     const { host, clientPort, agentPort, webPort, wssPort } = this;
 
@@ -133,6 +133,28 @@ export class SockzController extends SockzBase {
       // parse URL
       // const parsedUrl = url.parse(req.url);
       // TODO: Future support with https + certs
+
+      if (req.method === 'POST' && req.url === '/test') {
+        let payload = '';
+
+        req.on('data', (data) => payload += data);
+
+        req.on('end', () => {
+          this.log.info(req.headers['cookie']);
+
+          const data = JSON.parse(payload);
+
+          if (data && data.cmd === 'secret') {
+            res.setHeader('set-cookie', 'auth=true');
+          }
+
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ data }));
+        })
+
+        return;
+      }
+
       const baseURL = 'http://' + req.headers.host;
       const parsedUrl = new URL(req.url, baseURL);
       // extract URL path

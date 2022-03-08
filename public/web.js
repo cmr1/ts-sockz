@@ -167,6 +167,15 @@ $(function(){
           console.debug('Send cmd', buff.join(''));
           $(this).find('pre').append("\r\n");
           socket.send(buff.join(''));
+          // $.ajax({
+          //   type: 'POST',
+          //   url: '/test',
+          //   data: JSON.stringify({ cmd: buff.join('') }),
+          //   dataType: 'json',
+          //   success: (resp) => {
+          //     console.log('POST resp', resp);
+          //   }
+          // });
           buff = [];
           scroll();
           break;

@@ -32,8 +32,7 @@ const rsaDerOptions: crypto.RSAKeyPairOptions<'der', 'der'> = {
   modulusLength: 4096,
   publicKeyEncoding: {
     type: 'spki',
-    format: 'der',
-    hash
+    format: 'der'
   },
   privateKeyEncoding: {
     type: 'pkcs8',
@@ -52,8 +51,8 @@ const rsaPemOptions: crypto.RSAKeyPairOptions<'pem', 'pem'> = {
   privateKeyEncoding: {
     type: 'pkcs8',
     format: 'pem',
-    cipher: 'aes-256-cbc',
-    passphrase: SECRET
+    // cipher: 'aes-256-cbc',
+    // passphrase: ''
   }
 };
 
@@ -73,7 +72,8 @@ crypto.generateKeyPair('rsa', rsaPemOptions, (err, publicKey, privateKey) => {
   console.log(publicKey);
 
   const ENCRYPTED = crypto.publicEncrypt(publicKey, Buffer.from(MESSAGE));
-  const DECRYPTED = crypto.privateDecrypt({ key: privateKey, passphrase: SECRET }, Buffer.from(ENCRYPTED));
+  const DECRYPTED = crypto.privateDecrypt(privateKey, Buffer.from(ENCRYPTED));
+  // const DECRYPTED = crypto.privateDecrypt({ key: privateKey, passphrase: SECRET }, Buffer.from(ENCRYPTED));
 
   // console.log('Done', {
   //   MESSAGE,
