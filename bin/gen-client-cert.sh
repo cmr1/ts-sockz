@@ -20,9 +20,18 @@ openssl req \
 # sign with server_cert
 openssl x509 \
 	-req \
+	-extfile <(printf "[v3_req]\nextendedKeyUsage=serverAuth") \
+	-extensions v3_req \
 	-in $certs_dir/${client_name}_csr.pem \
 	-CA $certs_dir/$server_cert \
 	-CAkey $certs_dir/$server_key \
 	-out $certs_dir/${client_name}_cert.pem \
+	-days $cert_days \
 	-CAcreateserial \
-	-days $cert_days
+	-sha256
+
+# openssl x509 -req \
+# 	-extfile <(printf "[v3_req]\nextendedKeyUsage=serverAuth") \
+# 	-extensions v3_req \
+# 	-days 365 -in mydomain.com.csr -CA rootCA.crt -CAkey rootCA.key \
+# 	-CAcreateserial -out mydomain.com.csr -sha256
