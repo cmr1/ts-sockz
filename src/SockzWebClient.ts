@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { WebSocket } from 'ws';
 import { ISockzClient } from './contracts';
 import { SockzController } from './SockzController';
@@ -6,12 +7,18 @@ import { SockzRelay } from './SockzRelay';
 
 export class SockzWebClient extends SockzRelay implements ISockzClient {
   public client: SockzClient;
+  public publicKey: string;
+  public passwordSize = 64;
+  private password: string;
+  private privateKey: string;
 
   constructor(public ctl: SockzController, public socket: WebSocket) {
     super(ctl, socket, ctl.prompt);
 
     this.client = this.ctl.startClient(true);
     this.init();
+
+    // this.write('Welcome');
 
     this.socket.on('message', (data) => {
       const msg = data.toString().trim();
@@ -55,6 +62,8 @@ export class SockzWebClient extends SockzRelay implements ISockzClient {
   public init(): void {
     super.init();
 
+    this.generateSession();
+
     // this.on('message', this.data.bind(this));
     this.on('reset', this.showPrompt.bind(this));
     // this.on('message', (data) => {
@@ -68,5 +77,33 @@ export class SockzWebClient extends SockzRelay implements ISockzClient {
 
   public start(): void {
     // start web client?
+  }
+
+  private generateSession(): void {
+    this.password = crypto.randomBytes(this.passwordSize).toString('hex');
+    this.log.info('Generated password:', this.password);
+
+    const rsaPemOptions: crypto.RSAKeyPairOptions<'pem', 'pem'> = {
+      modulusLength: 4096,
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem',
+        cipher: 'aes-256-cbc',
+        passphrase: this.password
+      }
+    };
+
+    crypto.generateKeyPair('rsa', rsaPemOptions, (err, publicKey, privateKey) => {
+      if (err) throw err;
+
+      this.publicKey = publicKey;
+      this.privateKey = privateKey;
+
+      this.write(`PUBLIC_KEY=${Buffer.from(publicKey).toString('base64')}`);
+    });
   }
 }
