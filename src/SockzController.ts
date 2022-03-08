@@ -130,14 +130,10 @@ export class SockzController extends SockzBase {
     };
 
     if (req.url) {
-      // parse URL
-      // const parsedUrl = url.parse(req.url);
-      // TODO: Future support with https + certs
-
       if (req.method === 'POST' && req.url === '/test') {
         let payload = '';
 
-        req.on('data', (data) => payload += data);
+        req.on('data', (data) => (payload += data));
 
         req.on('end', () => {
           this.log.info(req.headers['cookie']);
@@ -150,7 +146,7 @@ export class SockzController extends SockzBase {
 
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ data }));
-        })
+        });
 
         return;
       }
