@@ -1,7 +1,8 @@
 import 'colors';
 import { UserInfo } from 'os';
 import Convert from 'ansi-to-html';
-import { Socket } from 'net';
+// import { Socket } from 'net';
+import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
 import { SockzController } from './SockzController';
 
@@ -37,7 +38,7 @@ export interface ISockzBase {
 
 export interface IBaseConnectable extends ISockzBase {
   ctl: SockzController;
-  socket: Socket | WebSocket;
+  socket: TLSSocket | WebSocket;
   prompt?: string;
   signature?: string;
   commands: string[];
@@ -46,7 +47,15 @@ export interface IBaseConnectable extends ISockzBase {
   relay?: IBaseConnectable;
   disconnecting?: boolean;
   convert: Convert;
+  requireAuthorized?: boolean;
+  clientAuthorized?: boolean;
+  client: IBaseConnectable;
 
+  get cert(): PeerCertificate | undefined;
+  get isAuthorized(): boolean;
+
+  authorized(): void;
+  unauthorized(): void;
   write(msg: string, cb?: (err?: Error) => void): void;
   send(msg: string, keep?: boolean): void;
   init(commands?: string[], forwards?: string[]): void;
@@ -68,12 +77,13 @@ export interface IBaseConnectable extends ISockzBase {
 export interface ISockzClient {
   ls(...args: string[]): void;
   use(target: string): void;
+  start(): void;
 }
 
 export interface ISockzAgent {
   handle(action: string): void;
-  start(): void;
   notify(client: IBaseConnectable): void;
+  start(): void;
 }
 
 export enum SockzLogTextColor {

@@ -1,9 +1,11 @@
 import 'colors';
 import fs from 'fs';
 import path from 'path';
-import { Server, Socket } from 'net';
+import { Socket } from 'net';
+import { Server, TLSSocket, TLSSocketOptions } from 'tls';
 import { WebSocketServer, WebSocket } from 'ws';
-import { Server as WebServer, IncomingMessage, ServerResponse as WebServerResponse } from 'http';
+import { IncomingMessage, ServerResponse as WebServerResponse } from 'http';
+import { Server as WebServer } from 'https';
 import { SockzBase } from './SockzBase';
 import { SockzRelay } from './SockzRelay';
 import { SockzAgent } from './SockzAgent';
@@ -38,10 +40,39 @@ export class SockzController extends SockzBase {
     super();
   }
 
+  public tlsOptions(name): TLSSocketOptions {
+    const certsDir = path.join(__dirname, '..', 'certs');
+
+    /**
+     * TODO: Certs from: server, agent+(any), client+(signed)
+     * - serverKey
+     * - serverCert
+     * - clientKey?
+     * - clientCert?
+     * - agentKey?
+     * - agentCert?
+     * - reject?
+     */
+    return {
+      key: fs.readFileSync(path.join(certsDir, `${name}_key.pem`)),
+      cert: fs.readFileSync(path.join(certsDir, `${name}_cert.pem`)),
+      ca: [fs.readFileSync(path.join(certsDir, `server_cert.pem`))],
+      requestCert: true,
+      rejectUnauthorized: false
+    };
+  }
+
   public startAgent(): void {
     const socket = new Socket();
-    const agent = new SockzAgent(this, socket);
+    const agent = new SockzAgent(this, new TLSSocket(socket));
     agent.start();
+  }
+
+  public startClient(quiet?: boolean): SockzClient {
+    const socket = new Socket();
+    const client = new SockzClient(this, new TLSSocket(socket), quiet);
+    client.start();
+    return client;
   }
 
   public startServer(): void {
@@ -53,19 +84,16 @@ export class SockzController extends SockzBase {
   public init(): void {
     this.log.debug('SockzController#init()');
 
-    this.web = new WebServer(this.connectWebserver.bind(this));
-
-    this.wss = new WebSocketServer({ host: this.host, port: this.wssPort }, () => {
-      this.log.info(`Websocket server listening: ${this.host}:${this.wssPort}`);
-    });
-
-    this.agentServer = new Server();
-    this.clientServer = new Server();
+    this.web = new WebServer(this.tlsOptions('server'), this.connectWebserver.bind(this));
+    this.wss = new WebSocketServer({ server: this.web });
+    this.agentServer = new Server(this.tlsOptions('server'));
+    this.clientServer = new Server(this.tlsOptions('server'));
   }
 
   public listen(): void {
     this.web.listen(this.webPort, this.host, () => {
       this.log.info(`Web server listening: ${this.host}:${this.webPort}`);
+      this.log.info(`Websocket server listening: ${this.host}:${this.webPort}`);
     });
 
     this.agentServer.listen(this.agentPort, this.host, () => {
@@ -79,8 +107,8 @@ export class SockzController extends SockzBase {
 
   public handle(): void {
     this.wss.on('connection', this.connectWebsocket.bind(this));
-    this.agentServer.on('connection', this.connectAgent.bind(this));
-    this.clientServer.on('connection', this.connectClient.bind(this));
+    this.agentServer.on('secureConnection', this.connectAgent.bind(this));
+    this.clientServer.on('secureConnection', this.connectClient.bind(this));
   }
 
   public debug(): void {
@@ -88,14 +116,45 @@ export class SockzController extends SockzBase {
   }
 
   public connectWebserver(req: IncomingMessage, res: WebServerResponse) {
-    console.log(`${req.method} ${req.url}`);
+    this.log.info(`${req.method} ${req.url}`);
 
-    const replacements = ['host', 'webPort', 'wssPort'];
+    const { host, clientPort, agentPort, webPort, wssPort } = this;
+
+    const replacements = {
+      // TODO: Bind host VS external host? i.e. BIND=0.0.0.0 | HOST=localhost
+      host: host === '0.0.0.0' ? 'localhost' : 'host',
+      clientPort,
+      agentPort,
+      webPort,
+      wssPort
+    };
 
     if (req.url) {
       // parse URL
       // const parsedUrl = url.parse(req.url);
       // TODO: Future support with https + certs
+
+      if (req.method === 'POST' && req.url === '/test') {
+        let payload = '';
+
+        req.on('data', (data) => payload += data);
+
+        req.on('end', () => {
+          this.log.info(req.headers['cookie']);
+
+          const data = JSON.parse(payload);
+
+          if (data && data.cmd === 'secret') {
+            res.setHeader('set-cookie', 'auth=true');
+          }
+
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ data }));
+        })
+
+        return;
+      }
+
       const baseURL = 'http://' + req.headers.host;
       const parsedUrl = new URL(req.url, baseURL);
       // extract URL path
@@ -138,8 +197,8 @@ export class SockzController extends SockzBase {
         } else {
           let content = data.toString();
 
-          replacements.forEach(key => {
-            content = content.replace(`{{${key}}}`, this[key]);
+          Object.keys(replacements).forEach((key) => {
+            content = content.replace(new RegExp(`{{${key}}}`, 'g'), replacements[key]);
           });
 
           // if the file is found, set Content-type and send data
@@ -152,7 +211,7 @@ export class SockzController extends SockzBase {
 
   public connectWebsocket(ws: WebSocket): void {
     const client = new SockzWebClient(this, ws);
-
+    // client.init();
     this.webClients.push(client);
 
     this.debug();
@@ -163,14 +222,16 @@ export class SockzController extends SockzBase {
     // ws.send('something');
   }
 
-  public connectAgent(socket: Socket): void {
+  public connectAgent(socket: TLSSocket): void {
     const agent = new SockzAgent(this, socket);
+    agent.init();
     this.agents.push(agent);
     this.debug();
   }
 
-  public connectClient(socket: Socket): void {
+  public connectClient(socket: TLSSocket): void {
     const client = new SockzClient(this, socket);
+    client.init();
     this.clients.push(client);
     this.debug();
   }
