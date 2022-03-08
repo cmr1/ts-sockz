@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-const SECRET = 'super secret';
+// const SECRET = 'super secret';
 const MESSAGE = 'Hello world';
 
 // crypto.generateKeyPair(
@@ -28,19 +28,19 @@ const MESSAGE = 'Hello world';
 //   }
 // );
 
-const rsaDerOptions: crypto.RSAKeyPairOptions<'der', 'der'> = {
-  modulusLength: 4096,
-  publicKeyEncoding: {
-    type: 'spki',
-    format: 'der'
-  },
-  privateKeyEncoding: {
-    type: 'pkcs8',
-    format: 'der',
-    // cipher: 'aes-256-cbc',
-    passphrase: SECRET
-  }
-};
+// const rsaDerOptions: crypto.RSAKeyPairOptions<'der', 'der'> = {
+//   modulusLength: 4096,
+//   publicKeyEncoding: {
+//     type: 'spki',
+//     format: 'der'
+//   },
+//   privateKeyEncoding: {
+//     type: 'pkcs8',
+//     format: 'der',
+//     // cipher: 'aes-256-cbc',
+//     passphrase: SECRET
+//   }
+// };
 
 const rsaPemOptions: crypto.RSAKeyPairOptions<'pem', 'pem'> = {
   modulusLength: 4096,
@@ -50,7 +50,7 @@ const rsaPemOptions: crypto.RSAKeyPairOptions<'pem', 'pem'> = {
   },
   privateKeyEncoding: {
     type: 'pkcs8',
-    format: 'pem',
+    format: 'pem'
     // cipher: 'aes-256-cbc',
     // passphrase: ''
   }
