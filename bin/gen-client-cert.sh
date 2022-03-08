@@ -24,5 +24,5 @@ openssl x509 \
 	-CA $certs_dir/$server_cert \
 	-CAkey $certs_dir/$server_key \
 	-out $certs_dir/${client_name}_cert.pem \
-	-set_serial 01 \
+	-CAcreateserial \
 	-days $cert_days
