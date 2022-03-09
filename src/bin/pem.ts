@@ -142,7 +142,7 @@ if (fs.existsSync(serverCertFile) && fs.existsSync(serviceKeyFile)) {
   pem.createCertificate(getClientOptions('Client', serviceKey, serverCert, serverPassword), (clientErr, clientKeys) => {
     if (clientErr) throw clientErr;
 
-    writeKeysSync('cilent', clientKeys);
+    writeKeysSync('client', clientKeys);
   });
 
   console.log('Generating Agent KeyPair ...');
@@ -165,7 +165,7 @@ if (fs.existsSync(serverCertFile) && fs.existsSync(serviceKeyFile)) {
       (clientErr, clientKeys) => {
         if (clientErr) throw clientErr;
 
-        writeKeysSync('cilent', clientKeys);
+        writeKeysSync('client', clientKeys);
       }
     );
 
