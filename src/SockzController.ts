@@ -130,6 +130,13 @@ export class SockzController extends SockzBase {
     };
 
     if (req.url) {
+      if (req.method === 'GET' && req.url === '/health') {
+        this.log.debug(`Responding to health check - request headers:`, req.headers);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.end('true');
+        return;
+      }
+
       if (req.method === 'POST' && req.url === '/test') {
         let payload = '';
 
