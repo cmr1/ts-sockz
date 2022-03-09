@@ -84,10 +84,10 @@ export class SockzController extends SockzBase {
   public init(): void {
     this.log.debug('SockzController#init()');
 
-    this.web = new WebServer(this.tlsOptions('server'), this.connectWebserver.bind(this));
+    this.web = new WebServer(this.tlsOptions('test.sockz.io'), this.connectWebserver.bind(this));
     this.wss = new WebSocketServer({ server: this.web });
-    this.agentServer = new Server(this.tlsOptions('server'));
-    this.clientServer = new Server(this.tlsOptions('server'));
+    this.agentServer = new Server(this.tlsOptions('test.sockz.io'));
+    this.clientServer = new Server(this.tlsOptions('test.sockz.io'));
   }
 
   public listen(): void {
@@ -122,7 +122,7 @@ export class SockzController extends SockzBase {
 
     const replacements = {
       // TODO: Bind host VS external host? i.e. BIND=0.0.0.0 | HOST=localhost
-      host: host === '0.0.0.0' ? 'localhost' : 'host',
+      host: host === '0.0.0.0' ? 'test.sockz.io' : 'host',
       clientPort,
       agentPort,
       webPort,

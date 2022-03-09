@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Generate script because certs expire in 1 year (365 days)
 
 client_name=${1:-Client}
@@ -20,7 +22,7 @@ openssl req \
 # sign with server_cert
 openssl x509 \
 	-req \
-	-extfile <(printf "[v3_req]\nextendedKeyUsage=clientAuth") \
+	-extfile <(printf "[v3_req]\nextendedKeyUsage=clientAuth,serverAuth") \
 	-extensions v3_req \
 	-in $certs_dir/${client_name}_csr.pem \
 	-CA $certs_dir/$server_cert \
@@ -35,3 +37,5 @@ openssl x509 \
 # 	-extensions v3_req \
 # 	-days 365 -in mydomain.com.csr -CA rootCA.crt -CAkey rootCA.key \
 # 	-CAcreateserial -out mydomain.com.csr -sha256
+
+# sudo openssl ca -keyfile server_key.pem -cert server_cert.pem -in ecparam.csr -out ecparam.crt -config /etc/pki/tls/openssl.cnf
