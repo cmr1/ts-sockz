@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-// const SECRET = 'super secret';
+const SECRET = 'super secret';
 const MESSAGE = 'Hello world';
 
 // crypto.generateKeyPair(
@@ -41,6 +41,20 @@ const MESSAGE = 'Hello world';
 //     passphrase: SECRET
 //   }
 // };
+
+const keyPairOptions: crypto.RSAKeyPairOptions<'pem', 'pem'> = {
+  modulusLength: 4096,
+  publicKeyEncoding: {
+    type: 'spki',
+    format: 'pem'
+  },
+  privateKeyEncoding: {
+    type: 'pkcs8',
+    format: 'pem',
+    cipher: 'aes-256-cbc',
+    passphrase: SECRET
+  }
+};
 
 const rsaPemOptions: crypto.RSAKeyPairOptions<'pem', 'pem'> = {
   modulusLength: 4096,

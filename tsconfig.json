@@ -13,7 +13,8 @@
     ],
     "types": [
       "@types/node",
-      "@types/ws"
+      "@types/ws",
+      "@types/pem"
     ],
     "outDir": "dist",
     "declaration": true,

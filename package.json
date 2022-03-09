@@ -11,6 +11,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "pem": "ts-node src/bin/pem.ts",
     "server": "nodemon src/bin/server.ts",
     "agent": "nodemon -d 2 src/bin/agent.ts",
     "ci:audit": "npm audit",
@@ -36,6 +37,7 @@
     "ansi-to-html": "^0.7.2",
     "colors": "^1.4.0",
     "fs-extra": "^10.0.1",
+    "pem": "^1.14.6",
     "shelljs": "^0.8.5",
     "uuid": "^8.3.2",
     "ws": "^8.5.0"
@@ -43,6 +45,7 @@
   "devDependencies": {
     "@bowtie/prettier": "^1.4.1",
     "@types/node": "^17.0.21",
+    "@types/pem": "^1.9.6",
     "@types/ws": "^8.5.2",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",

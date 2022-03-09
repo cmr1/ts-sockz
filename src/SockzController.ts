@@ -20,9 +20,9 @@ const DEFAULT_PROMPT = `sockz> `;
 
 const {
   SERVER_HOST_NAME = 'localhost',
-  SERVER_CERT_NAME = 'server_cert.pem',
-  SERVER_KEY_NAME = 'server_key.pem',
-  SERVER_CA_NAME = 'server_cert.pem'
+  SERVER_CERT_NAME = 'server.certificate.pem',
+  SERVER_KEY_NAME = 'server.clientKey.pem',
+  SERVER_CA_NAME = 'server.certificate.pem'
 } = process.env;
 
 export class SockzController extends SockzBase {
@@ -46,7 +46,7 @@ export class SockzController extends SockzBase {
   }
 
   public tlsOptions(cert: string, key: string, caList?: string): TLSSocketOptions {
-    const certsDir = path.join(__dirname, '..', 'certs');
+    const certsDir = path.join(__dirname, '..', 'tmp', 'certs');
 
     return {
       key: fs.readFileSync(path.join(certsDir, key)),
