@@ -24,5 +24,12 @@ node_modules
 !public/**/*.js
 !public/**/*.css
 !public/**/*.html
+!public/build
+!public/build/**/*.js
+!public/build/**/*.css
+!public/build/**/*.html
 !package.json
 !package-lock.json
+
+certs/*
+!certs/.keep

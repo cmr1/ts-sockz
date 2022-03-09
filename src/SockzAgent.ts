@@ -1,28 +1,36 @@
 import 'colors';
 import fs from 'fs';
+import tls, { TLSSocket } from 'tls';
 import path from 'path';
 import shell from 'shelljs';
-import { Socket } from 'net';
+// import { Socket } from 'net';
 import { ISockzAgent } from './contracts';
 import { SockzController } from './SockzController';
 import { SockzRelay } from './SockzRelay';
 
-const rick = 'https://www.youtube.com/watch?v=oHg5SJYRHA0';
+const {
+  AGENT_CERT_NAME = 'agent.certificate.pem',
+  AGENT_KEY_NAME = 'agent.clientKey.pem',
+  AGENT_CA_LIST = '',
+
+  // Ssshhhh ... secret env var 😉 (override to open $RICKROLL webpage on "rickroll" cmd)
+  RICKROLL = 'https://www.youtube.com/watch?v=oHg5SJYRHA0'
+} = process.env;
 
 export class SockzAgent extends SockzRelay implements ISockzAgent {
   public listener?: boolean;
+  public requireAuthorized = false;
 
-  constructor(public ctl: SockzController, public socket: Socket) {
+  constructor(public ctl: SockzController, public socket: TLSSocket) {
     super(ctl, socket);
   }
 
   public init(): void {
-    super.init();
+    super.init(['registered']);
+  }
 
-    this.on('registered', () => {
-      this.ctl.clients.forEach(this.notify.bind(this));
-      this.ctl.webClients.forEach(this.notify.bind(this));
-    });
+  public registered(): void {
+    this.ctl.clients.forEach(this.notify.bind(this));
   }
 
   public notify(client: SockzRelay): void {
@@ -53,13 +61,13 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
       this.socket.end();
       return;
     } else if (/rickroll/i.test(action)) {
-      shell.exec(`python3 -m webbrowser "${rick}"`);
+      shell.exec(`python3 -m webbrowser "${RICKROLL}"`);
       response = `Rick is rolling ...`;
     } else if (action === 'info') {
       response = JSON.stringify(this.systemInfo, null, 2);
     } else {
       const res = shell.exec(action, { silent: true });
-      const [cmd, ...args] = action.split(' ').map(str => str.trim());
+      const [cmd, ...args] = action.split(' ').map((str) => str.trim());
 
       if (res?.code === 0 && cmd === 'cd' && args.length) {
         const [dest] = args;
@@ -101,10 +109,17 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
     this.signature = `${this.systemInfo?.user.username}@${this.systemInfo?.os.hostname}`;
 
-    this.socket.connect({ port: this.ctl.agentPort, host: this.ctl.host }, () => {
-      this.log.info(`SockzAgent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
-
-      this.write(`reg ${this.signature}`);
-    });
+    this.socket = tls.connect(
+      {
+        ...this.ctl.tlsOptions(AGENT_CERT_NAME, AGENT_KEY_NAME, AGENT_CA_LIST),
+        host: this.ctl.host,
+        port: this.ctl.agentPort
+      },
+      () => {
+        this.log.info(`SockzAgent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
+        this.init();
+        this.write(`reg ${this.signature}`);
+      }
+    );
   }
 }

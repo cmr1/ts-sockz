@@ -1,7 +1,9 @@
 import 'colors';
 import { UserInfo } from 'os';
 import Convert from 'ansi-to-html';
-import { Socket } from 'net';
+// import { Socket } from 'net';
+import { Express } from 'express';
+import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
 import { SockzController } from './SockzController';
 
@@ -35,18 +37,31 @@ export interface ISockzBase {
   load(): void;
 }
 
-export interface IBaseConnectable extends ISockzBase {
+export interface ISockzWebApp {
   ctl: SockzController;
-  socket: Socket | WebSocket;
+  server: Express;
+}
+
+export interface ISockzConnectable extends ISockzBase {
+  ctl: SockzController;
+  socket: TLSSocket | WebSocket;
   prompt?: string;
   signature?: string;
   commands: string[];
   forwards: string[];
   methods: string[];
-  relay?: IBaseConnectable;
+  relay?: ISockzConnectable;
   disconnecting?: boolean;
   convert: Convert;
+  requireAuthorized?: boolean;
+  clientAuthorized?: boolean;
+  client: ISockzConnectable;
 
+  get cert(): PeerCertificate | undefined;
+  get isAuthorized(): boolean;
+
+  authorized(): void;
+  unauthorized(): void;
   write(msg: string, cb?: (err?: Error) => void): void;
   send(msg: string, keep?: boolean): void;
   init(commands?: string[], forwards?: string[]): void;
@@ -62,18 +77,19 @@ export interface IBaseConnectable extends ISockzBase {
   error(err: Error): void;
   disconnect(): void;
   showPrompt(): void;
-  updatePrompt(relay: IBaseConnectable, cwd?: string): void;
+  updatePrompt(relay: ISockzConnectable, cwd?: string): void;
 }
 
 export interface ISockzClient {
   ls(...args: string[]): void;
   use(target: string): void;
+  start(): void;
 }
 
 export interface ISockzAgent {
   handle(action: string): void;
+  notify(client: ISockzConnectable): void;
   start(): void;
-  notify(client: IBaseConnectable): void;
 }
 
 export enum SockzLogTextColor {

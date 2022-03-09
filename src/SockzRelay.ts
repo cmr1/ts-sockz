@@ -1,26 +1,71 @@
 import 'colors';
 import Convert from 'ansi-to-html';
 import { Socket } from 'net';
+import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
-import { IBaseConnectable } from './contracts';
+import { ISockzConnectable } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 
-export class SockzRelay extends SockzBase implements IBaseConnectable {
+export class SockzRelay extends SockzBase implements ISockzConnectable {
   public signature?: string;
-  public commands: string[] = ['reg', 'exit', 'ping', 'info', 'help'];
+  public commands: string[] = ['reg', 'whoami', 'exit', 'ping', 'info', 'help'];
   public forwards: string[] = ['data', 'close', 'error'];
-  public methods: string[] = ['data', 'close', 'error'];
-  public relay?: IBaseConnectable;
+  public methods: string[] = ['data', 'close', 'error', 'authorized', 'unauthorized'];
+  public relay?: ISockzConnectable;
   public disconnecting?: boolean;
   public convert: Convert;
+  public client: ISockzConnectable;
+  public requireAuthorized = false;
+  public clientAuthorized = false;
 
-  constructor(public ctl: SockzController, public socket: Socket | WebSocket, public prompt?: string) {
+  constructor(public ctl: SockzController, public socket: TLSSocket | WebSocket, public prompt?: string) {
     super();
 
+    this.client = this;
     this.convert = new Convert();
+  }
 
-    this.init();
+  public get cert(): PeerCertificate | undefined {
+    return this.socket instanceof TLSSocket ? this.socket.getPeerCertificate() : undefined;
+  }
+
+  public get isAuthorized(): boolean {
+    if (this.socket instanceof TLSSocket) {
+      return !this.requireAuthorized || this.socket.authorized;
+    } else if (this.socket instanceof WebSocket) {
+      return this.clientAuthorized;
+    }
+
+    return false;
+  }
+
+  public authorized(): void {
+    const msg = `Authorized: ${this.cert?.subject.CN}`;
+
+    this.log.success(msg);
+
+    if (this.prompt) {
+      this.write(`${msg}\n`.green);
+    }
+
+    this.ready();
+  }
+
+  public unauthorized(): void {
+    const authError = (this.socket as TLSSocket).authorizationError;
+    const errMsg = `Unauthorized: ${this.cert?.subject.CN} (${authError})`;
+
+    this.log.error(errMsg);
+    this.debug();
+
+    if (this.prompt) {
+      this.write(`${errMsg}\n`.red);
+    }
+
+    // setTimeout(() => {
+    //   this.exit();
+    // }, 1000);
   }
 
   public write(msg: string, cb?: (err?: Error) => void): void {
@@ -32,25 +77,22 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public send(msg: string, keep = true): void {
+    this.log.debug(`Sending: ${msg}`, { keep });
+
     if (this.prompt) {
       this.write(msg);
 
       if (keep) {
         this.write(`\n${this.prompt}`);
       }
+    } else {
+      this.log.debug(`NO PROMPT - Skipping full "send" output`);
     }
   }
 
   public init(commands: string[] = [], forwards: string[] = []): void {
     this.commands = this.commands.concat(commands);
     this.forwards = this.forwards.concat(forwards);
-
-    this.forwards.forEach((e) => {
-      this.socket.on(e, (...args) => {
-        this.log.debug(`Socket.on(${e}) ${args[0]}`, args);
-        this.emit(e, ...args);
-      });
-    });
 
     [...this.commands].concat(this.methods).forEach((cmd) => {
       if (typeof this[cmd] === 'function') {
@@ -60,11 +102,33 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       }
     });
 
-    this.ready();
+    if (this.isAuthorized) {
+      this.forwards.forEach((e) => {
+        this.socket.on(e, (...args) => {
+          this.log.debug(`Socket.on(${e}) ${args[0]}`, args);
+          this.emit(e, ...args);
+        });
+      });
+
+      this.emit('authorized');
+    } else {
+      this.emit('unauthorized');
+    }
+  }
+
+  public debug(): void {
+    if (this.socket instanceof TLSSocket) {
+      const cert = this.socket.getPeerCertificate();
+
+      this.log.debug(`Cert info`, cert);
+    } else if (this.socket instanceof WebSocket) {
+      // const cert = this.socket.auth
+    }
   }
 
   public ready(): void {
     this.send(`[${this.id}] ${this.constructor.name} is ready`);
+    this.debug();
   }
 
   public showPrompt(): void {
@@ -125,6 +189,10 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
     }
   }
 
+  public whoami(): void {
+    this.send(this.client.signature || this.signature || 'Unknown');
+  }
+
   public ping(): void {
     this.send('pong');
   }
@@ -145,11 +213,17 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   }
 
   public exit(msg = 'Goodbye.'): void {
+    this.log.debug(`Exiting: ${msg}`);
     this.send(`${msg}\n`, false);
 
     if (this.socket instanceof Socket) {
+      this.socket.end();
       this.socket.destroy();
+    } else if (this.socket instanceof WebSocket) {
+      this.socket.close();
     }
+
+    this.disconnect();
   }
 
   public close(hasError: boolean) {
@@ -178,6 +252,8 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
   public ls(...args: string[]) {
     const { agents } = this.ctl;
     const lines = [...args].concat(['SockzAgent List:'.underline]);
+
+    this.log.info(`Running list command...`);
 
     if (agents.length) {
       this.ctl.agents.forEach((agent, index) => {
@@ -221,11 +297,7 @@ export class SockzRelay extends SockzBase implements IBaseConnectable {
       relay.systemInfo.cwd = cwd;
     }
 
-    const promptParts = [
-      relay.signature?.cyan,
-      cwd?.yellow || relay.systemInfo?.cwd.yellow,
-      this.ctl.prompt
-    ];
+    const promptParts = [relay.signature?.cyan, cwd?.yellow || relay.systemInfo?.cwd.yellow, this.ctl.prompt];
 
     this.prompt = promptParts.join(':');
   }

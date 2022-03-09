@@ -13,7 +13,12 @@
     ],
     "types": [
       "@types/node",
-      "@types/ws"
+      "@types/ws",
+      "@types/pem",
+      "@types/express",
+      "@types/cookie-parser",
+      "@types/cookie-session",
+      "@types/express-session"
     ],
     "outDir": "dist",
     "declaration": true,

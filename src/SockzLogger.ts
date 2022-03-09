@@ -1,5 +1,12 @@
 import colors from 'colors/safe';
-import { ISockzLogger, ISockzLogOptionsMap, ISockzLogTextTheme, ISockzLogOptions, SockzLogTextThemeValue, SockzLogTextColor } from './contracts';
+import {
+  ISockzLogger,
+  ISockzLogOptionsMap,
+  ISockzLogTextTheme,
+  ISockzLogOptions,
+  SockzLogTextThemeValue,
+  SockzLogTextColor
+} from './contracts';
 
 export class SockzLogger implements ISockzLogger {
   public verbose = false;
