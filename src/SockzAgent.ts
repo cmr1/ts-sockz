@@ -9,8 +9,8 @@ import { SockzController } from './SockzController';
 import { SockzRelay } from './SockzRelay';
 
 const {
-  AGENT_CERT_NAME = 'agent_cert.pem',
-  AGENT_KEY_NAME = 'agent_key.pem',
+  AGENT_CERT_NAME = 'agent.certificate.pem',
+  AGENT_KEY_NAME = 'agent.clientKey.pem',
   AGENT_CA_LIST = '',
 
   // Ssshhhh ... secret env var 😉 (override to open $RICKROLL webpage on "rickroll" cmd)
