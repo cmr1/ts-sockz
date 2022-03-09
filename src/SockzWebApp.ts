@@ -40,6 +40,10 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     next();
   }
 
+  private health(req, res) {
+    res.send('true');
+  }
+
   private routes(): void {
     this.server.use(cookieSession({ secret: COOKIE_SESSION_SECRET }));
     this.server.use(cookieParser('my secret here'));
@@ -49,6 +53,11 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     // parses x-www-form-urlencoded
     this.server.use(express.urlencoded({ extended: false }));
+
+    // parses json data
+    // this.server.use(express.json());
+
+    this.server.get('/health', this.health.bind(this));
 
     this.server.get('/test', (req, res) => {
       if (req.cookies.remember) {
