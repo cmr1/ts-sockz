@@ -1,4 +1,5 @@
-// import path from 'path';
+import fs from 'fs';
+import path from 'path';
 import express, { Express } from 'express';
 // import session from 'express-session';
 import cookieParser from 'cookie-parser';
@@ -32,6 +33,18 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server = express();
 
     this.routes();
+  }
+
+  public get publicDir(): string {
+    return path.join(__dirname, '..', 'public');
+  }
+
+  public get buildDir(): string {
+    return path.join(this.publicDir, 'build');
+  }
+
+  public get hasBuild(): boolean {
+    return fs.existsSync(path.join(this.buildDir, 'index.html'));
   }
 
   private count(req, res, next) {
@@ -82,7 +95,9 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       res.redirect('back');
     });
 
-    this.server.use(express.static('public/build'));
+    const staticDir = this.hasBuild ? this.buildDir : this.publicDir;
+
+    this.server.use(express.static(staticDir));
 
     // this.server.use('/console', express.static('public/build'));
 
