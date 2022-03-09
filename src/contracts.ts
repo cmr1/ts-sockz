@@ -2,6 +2,8 @@ import 'colors';
 import { UserInfo } from 'os';
 import Convert from 'ansi-to-html';
 // import { Socket } from 'net';
+import { Express } from 'express';
+import { Server as WebServer } from 'https';
 import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
 import { SockzController } from './SockzController';
@@ -36,7 +38,12 @@ export interface ISockzBase {
   load(): void;
 }
 
-export interface IBaseConnectable extends ISockzBase {
+export interface ISockzWebApp {
+  ctl: SockzController;
+  server: Express;
+}
+
+export interface ISockzConnectable extends ISockzBase {
   ctl: SockzController;
   socket: TLSSocket | WebSocket;
   prompt?: string;
@@ -44,12 +51,12 @@ export interface IBaseConnectable extends ISockzBase {
   commands: string[];
   forwards: string[];
   methods: string[];
-  relay?: IBaseConnectable;
+  relay?: ISockzConnectable;
   disconnecting?: boolean;
   convert: Convert;
   requireAuthorized?: boolean;
   clientAuthorized?: boolean;
-  client: IBaseConnectable;
+  client: ISockzConnectable;
 
   get cert(): PeerCertificate | undefined;
   get isAuthorized(): boolean;
@@ -71,7 +78,7 @@ export interface IBaseConnectable extends ISockzBase {
   error(err: Error): void;
   disconnect(): void;
   showPrompt(): void;
-  updatePrompt(relay: IBaseConnectable, cwd?: string): void;
+  updatePrompt(relay: ISockzConnectable, cwd?: string): void;
 }
 
 export interface ISockzClient {
@@ -82,7 +89,7 @@ export interface ISockzClient {
 
 export interface ISockzAgent {
   handle(action: string): void;
-  notify(client: IBaseConnectable): void;
+  notify(client: ISockzConnectable): void;
   start(): void;
 }
 

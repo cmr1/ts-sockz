@@ -10,6 +10,7 @@ import { SockzBase } from './SockzBase';
 import { SockzRelay } from './SockzRelay';
 import { SockzAgent } from './SockzAgent';
 import { SockzClient } from './SockzClient';
+import { SockzWebApp } from './SockzWebApp';
 import { SockzWebClient } from './SockzWebClient';
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -26,6 +27,7 @@ const {
 } = process.env;
 
 export class SockzController extends SockzBase {
+  public app: SockzWebApp;
   public web: WebServer;
   public wss: WebSocketServer;
   public agentServer: Server;
@@ -43,6 +45,8 @@ export class SockzController extends SockzBase {
     public prompt = DEFAULT_PROMPT
   ) {
     super();
+
+    this.app = new SockzWebApp(this);
   }
 
   public tlsOptions(cert: string, key: string, caList?: string): TLSSocketOptions {
@@ -81,7 +85,8 @@ export class SockzController extends SockzBase {
 
     this.web = new WebServer(
       this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME),
-      this.connectWebserver.bind(this)
+      this.app.server
+      // this.connectWebserver.bind(this)
     );
     this.wss = new WebSocketServer({ server: this.web });
     this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));

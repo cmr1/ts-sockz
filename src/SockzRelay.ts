@@ -3,19 +3,19 @@ import Convert from 'ansi-to-html';
 import { Socket } from 'net';
 import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
-import { IBaseConnectable } from './contracts';
+import { ISockzConnectable } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 
-export class SockzRelay extends SockzBase implements IBaseConnectable {
+export class SockzRelay extends SockzBase implements ISockzConnectable {
   public signature?: string;
   public commands: string[] = ['reg', 'whoami', 'exit', 'ping', 'info', 'help'];
   public forwards: string[] = ['data', 'close', 'error'];
   public methods: string[] = ['data', 'close', 'error', 'authorized', 'unauthorized'];
-  public relay?: IBaseConnectable;
+  public relay?: ISockzConnectable;
   public disconnecting?: boolean;
   public convert: Convert;
-  public client: IBaseConnectable;
+  public client: ISockzConnectable;
   public requireAuthorized = false;
   public clientAuthorized = false;
 

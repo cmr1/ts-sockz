@@ -14,7 +14,11 @@
     "types": [
       "@types/node",
       "@types/ws",
-      "@types/pem"
+      "@types/pem",
+      "@types/express",
+      "@types/body-parser",
+      "@types/cookie-parser",
+      "@types/cookie-session"
     ],
     "outDir": "dist",
     "declaration": true,

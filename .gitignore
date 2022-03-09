@@ -103,5 +103,9 @@ dist
 # TernJS port file
 .tern-port
 tmp
+
 certs/*
 !certs/.keep
+
+public/build/*
+!public/build/.keep
