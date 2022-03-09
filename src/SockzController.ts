@@ -14,10 +14,16 @@ import { SockzWebClient } from './SockzWebClient';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_WEB_PORT = 8080;
-const DEFAULT_WSS_PORT = 8181;
 const DEFAULT_AGENT_PORT = 1111;
 const DEFAULT_CLIENT_PORT = 2222;
 const DEFAULT_PROMPT = `sockz> `;
+
+const {
+  SERVER_HOST_NAME = 'localhost',
+  SERVER_CERT_NAME = 'server_cert.pem',
+  SERVER_KEY_NAME = 'server_key.pem',
+  SERVER_CA_NAME = 'server_cert.pem'
+} = process.env;
 
 export class SockzController extends SockzBase {
   public web: WebServer;
@@ -34,29 +40,18 @@ export class SockzController extends SockzBase {
     public agentPort = DEFAULT_AGENT_PORT,
     public clientPort = DEFAULT_CLIENT_PORT,
     public webPort = DEFAULT_WEB_PORT,
-    public wssPort = DEFAULT_WSS_PORT,
     public prompt = DEFAULT_PROMPT
   ) {
     super();
   }
 
-  public tlsOptions(name): TLSSocketOptions {
+  public tlsOptions(cert: string, key: string, caList?: string): TLSSocketOptions {
     const certsDir = path.join(__dirname, '..', 'certs');
 
-    /**
-     * TODO: Certs from: server, agent+(any), client+(signed)
-     * - serverKey
-     * - serverCert
-     * - clientKey?
-     * - clientCert?
-     * - agentKey?
-     * - agentCert?
-     * - reject?
-     */
     return {
-      key: fs.readFileSync(path.join(certsDir, `${name}_key.pem`)),
-      cert: fs.readFileSync(path.join(certsDir, `${name}_cert.pem`)),
-      ca: [fs.readFileSync(path.join(certsDir, `server_cert.pem`))],
+      key: fs.readFileSync(path.join(certsDir, key)),
+      cert: fs.readFileSync(path.join(certsDir, cert)),
+      ca: caList ? caList.split(',').map((ca) => fs.readFileSync(path.join(certsDir, ca.trim()))) : [],
       requestCert: true,
       rejectUnauthorized: false
     };
@@ -84,10 +79,13 @@ export class SockzController extends SockzBase {
   public init(): void {
     this.log.debug('SockzController#init()');
 
-    this.web = new WebServer(this.tlsOptions('test.sockz.io'), this.connectWebserver.bind(this));
+    this.web = new WebServer(
+      this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME),
+      this.connectWebserver.bind(this)
+    );
     this.wss = new WebSocketServer({ server: this.web });
-    this.agentServer = new Server(this.tlsOptions('test.sockz.io'));
-    this.clientServer = new Server(this.tlsOptions('test.sockz.io'));
+    this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
+    this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
   }
 
   public listen(): void {
@@ -118,15 +116,13 @@ export class SockzController extends SockzBase {
   public connectWebserver(req: IncomingMessage, res: WebServerResponse) {
     this.log.info(`${req.method} ${req.url}`);
 
-    const { host, clientPort, agentPort, webPort, wssPort } = this;
+    const { clientPort, agentPort, webPort } = this;
 
     const replacements = {
-      // TODO: Bind host VS external host? i.e. BIND=0.0.0.0 | HOST=localhost
-      host: host === '0.0.0.0' ? 'test.sockz.io' : 'host',
+      host: SERVER_HOST_NAME,
       clientPort,
       agentPort,
-      webPort,
-      wssPort
+      webPort
     };
 
     if (req.url) {

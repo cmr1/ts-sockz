@@ -7,6 +7,7 @@ TypeScript - Fun with sockets
 - [Options](#options)
 - [Defaults](#defaults)
 - [Advanced](#advanced)
+- [Environment](#environment)
 - [Documentation](https://cmr1.github.io/ts-sockz)
 
 ## Simple
@@ -35,7 +36,7 @@ Visit the web client console:
 ## Options
 
 ```bash
-npx sockz <role> <host> <agentPort> <clientPort> <webPort> <wssPort> <prompt>
+npx sockz <role> <host> <agentPort> <clientPort> <webPort> <prompt>
 ```
 
 Allowed values:
@@ -45,7 +46,6 @@ Allowed values:
 - agentPort: `number`
 - clientPort: `number`
 - webPort: `number`
-- wssPort: `number`
 - prompt: `string`
 
 
@@ -56,7 +56,6 @@ Allowed values:
 - agentPort: `1111`
 - clientPort: `2222`
 - webPort: `8080`
-- wssPort: `8181`
 - prompt: `"sockz> "`
 
 
@@ -84,7 +83,7 @@ To customize the session prompt:
 
 ```bash
 # Start a server and use poop for client prompt
-npx sockz server 0.0.0.0 1111 2222 1337 7331 "💩 "
+npx sockz server 0.0.0.0 1111 2222 8080 "💩 "
 # Connect a client
 netcat localhost 2222
 # Client connection output
@@ -116,4 +115,25 @@ https://github.com/cmr1/docker-sockz
 
 ```
 docker run cmr1/sockz
+```
+
+## Environment
+
+**Additional configuration options available as env vars:**
+
+- *All cert/key paths are resolved from `certs/` directory*
+
+```bash
+# Server environment variables
+SERVER_HOST_NAME = 'localhost'
+SERVER_CERT_NAME = 'server_cert.pem'
+SERVER_KEY_NAME = 'server_key.pem'
+# Comma separated list of ca cert names (required for auth)
+SERVER_CA_NAME = 'server_cert.pem'
+
+# Agent environment variables
+AGENT_CERT_NAME = 'agent_cert.pem'
+AGENT_KEY_NAME = 'agent_key.pem'
+# Comma separated list of ca cert names (optional)
+AGENT_CA_LIST = ''
 ```

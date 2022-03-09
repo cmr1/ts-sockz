@@ -8,7 +8,14 @@ import { ISockzAgent } from './contracts';
 import { SockzController } from './SockzController';
 import { SockzRelay } from './SockzRelay';
 
-const rick = 'https://www.youtube.com/watch?v=oHg5SJYRHA0';
+const {
+  AGENT_CERT_NAME = 'agent_cert.pem',
+  AGENT_KEY_NAME = 'agent_key.pem',
+  AGENT_CA_LIST = '',
+
+  // Ssshhhh ... secret env var 😉 (override to open $RICKROLL webpage on "rickroll" cmd)
+  RICKROLL = 'https://www.youtube.com/watch?v=oHg5SJYRHA0'
+} = process.env;
 
 export class SockzAgent extends SockzRelay implements ISockzAgent {
   public listener?: boolean;
@@ -54,7 +61,7 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
       this.socket.end();
       return;
     } else if (/rickroll/i.test(action)) {
-      shell.exec(`python3 -m webbrowser "${rick}"`);
+      shell.exec(`python3 -m webbrowser "${RICKROLL}"`);
       response = `Rick is rolling ...`;
     } else if (action === 'info') {
       response = JSON.stringify(this.systemInfo, null, 2);
@@ -103,7 +110,11 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
     this.signature = `${this.systemInfo?.user.username}@${this.systemInfo?.os.hostname}`;
 
     this.socket = tls.connect(
-      { ...this.ctl.tlsOptions('agent'), host: this.ctl.host, port: this.ctl.agentPort },
+      {
+        ...this.ctl.tlsOptions(AGENT_CERT_NAME, AGENT_KEY_NAME, AGENT_CA_LIST),
+        host: this.ctl.host,
+        port: this.ctl.agentPort
+      },
       () => {
         this.log.info(`SockzAgent connected to controller: ${this.ctl.host}:${this.ctl.agentPort}`);
         this.init();
