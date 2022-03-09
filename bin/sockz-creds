@@ -10,10 +10,14 @@ if [ ! -d $certs_dir ]; then
   exit 1
 fi
 
-for f in $certs_dir/$creds.*; do
-  echo "$f"
-  cat $f
-  echo ""
-  echo ""
-  echo ""
-done
+if [[ "$2" != "" ]]; then
+  cat $certs_dir/$creds.$2.pem
+else
+  for f in $certs_dir/$creds.*; do
+    echo "$f"
+    cat $f
+    echo ""
+    echo ""
+    echo ""
+  done
+fi
