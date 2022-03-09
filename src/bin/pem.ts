@@ -46,8 +46,10 @@ const serverOptions: pem.CertificateCreationOptions = {
 };
 
 const getClientOptions = (
-  server: pem.CertificateCreationResult,
-  commonName = 'Client'
+  commonName: string,
+  serviceKey: string,
+  serviceCertificate: string,
+  serviceKeyPassword: string
 ): pem.CertificateCreationOptions => {
   return {
     // csr: '',
@@ -68,9 +70,9 @@ const getClientOptions = (
     serial: 1234,
     // serialFile: '/path/to/serial', // TODO: Submit PR for type fix?
     selfSigned: false,
-    serviceKey: server.serviceKey, // or serviceKey?
-    serviceCertificate: server.certificate,
-    serviceKeyPassword: serverPassword,
+    serviceKey,
+    serviceCertificate,
+    serviceKeyPassword,
     clientKeyPassword: clientPassword
   };
 };
@@ -124,30 +126,43 @@ const writeKeysSync = (name: string, keys: pem.CertificateCreationResult) => {
   }
 };
 
-pem.createCertificate(serverOptions, (serverErr, serverKeys) => {
-  if (serverErr) throw serverErr;
+const serverKey = fs.readFileSync(path.join(certDir, 'server.clientKey.pem'), 'utf-8');
+const serverCert = fs.readFileSync(path.join(certDir, 'server.certificate.pem'), 'utf-8');
+const serviceKey = fs.readFileSync(path.join(certDir, 'server.serviceKey.pem'), 'utf-8');
 
-  writeKeysSync('server', serverKeys);
+pem.createCertificate(getClientOptions('Client', serviceKey, serverCert, serverPassword), (clientErr, clientKeys) => {
+  if (clientErr) throw clientErr;
 
-  // pem.createCSR(clientCsrOptions, (csrErr, csrData) => {
-  //   if (csrErr) throw csrErr;
-
-  //   pem.createCertificate(getClientOptions(serverKeys, csrData.csr), (clientErr, clientKeys) => {
-  //     if (clientErr) throw clientErr;
-
-  //     writeKeysSync('cilent', clientKeys);
-  //   });
-  // });
-
-  pem.createCertificate(getClientOptions(serverKeys), (clientErr, clientKeys) => {
-    if (clientErr) throw clientErr;
-
-    writeKeysSync('cilent', clientKeys);
-  });
-
-  pem.createCertificate(getAgentOptions(serverKeys), (agentErr, agentKeys) => {
-    if (agentErr) throw agentErr;
-
-    writeKeysSync('agent', agentKeys);
-  });
+  writeKeysSync('cilent', clientKeys);
 });
+
+// pem.createCertificate(serverOptions, (serverErr, serverData) => {
+//   if (serverErr) throw serverErr;
+
+//   writeKeysSync('server', serverData);
+
+//   // pem.createCSR(clientCsrOptions, (csrErr, csrData) => {
+//   //   if (csrErr) throw csrErr;
+
+//   //   pem.createCertificate(getClientOptions(serverData, csrData.csr), (clientErr, clientKeys) => {
+//   //     if (clientErr) throw clientErr;
+
+//   //     writeKeysSync('cilent', clientKeys);
+//   //   });
+//   // });
+
+//   pem.createCertificate(
+//     getClientOptions('Client', serverData.serviceKey, serverData.certificate, serverPassword),
+//     (clientErr, clientKeys) => {
+//       if (clientErr) throw clientErr;
+
+//       writeKeysSync('cilent', clientKeys);
+//     }
+//   );
+
+//   pem.createCertificate(getAgentOptions(serverData), (agentErr, agentKeys) => {
+//     if (agentErr) throw agentErr;
+
+//     writeKeysSync('agent', agentKeys);
+//   });
+// });
