@@ -2,7 +2,16 @@
 
 creds=${1:-client}
 
-sockz_dir=$(dirname $(dirname $(readlink -f $(which sockz))))
+uname=$(uname -s)
+
+if [[ "$uname" == "Darwin" ]]; then
+  cd $(dirname $(which sockz))
+  cd $(dirname $(dirname $(readlink $(which sockz))))
+  sockz_dir=$(pwd)
+else
+  sockz_dir=$(dirname $(dirname $(readlink -f $(which sockz))))
+fi
+
 certs_dir=$sockz_dir/certs
 
 if [ ! -d $certs_dir ]; then
