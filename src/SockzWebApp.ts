@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import cors from 'cors';
 import express, { Express } from 'express';
 // import session from 'express-session';
 import cookieParser from 'cookie-parser';
@@ -8,7 +9,8 @@ import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 
-const COOKIE_SESSION_SECRET = 'super secret';
+const COOKIE_SESSION_SECRET = 'session secret';
+const COOKIE_STORAGE_SECRET = 'storage secret';
 
 // Better logger?
 // From: https://github.com/expressjs/express/blob/master/examples/cookies/index.js
@@ -27,7 +29,7 @@ const COOKIE_SESSION_SECRET = 'super secret';
 export class SockzWebApp extends SockzBase implements ISockzWebApp {
   public server: Express;
 
-  constructor(public ctl: SockzController) {
+  constructor(public ctl: SockzController, public cors?: cors.CorsOptions) {
     super();
 
     this.server = express();
@@ -47,6 +49,19 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     return fs.existsSync(path.join(this.buildDir, 'index.html'));
   }
 
+  public get corsDefault(): cors.CorsOptions {
+    return {
+      origin: '*',
+      optionsSuccessStatus: 200
+    };
+  }
+
+  public corsOptions(extra?: cors.CorsOptions): cors.CorsOptions {
+    const opts = this.cors || this.corsDefault;
+
+    return { ...opts, ...extra };
+  }
+
   private count(req, res, next) {
     req.session.count = (req.session.count || 0) + 1;
     this.log.debug('session viewed ' + req.session.count + ' times\n', req.session);
@@ -58,8 +73,10 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private routes(): void {
+    this.server.use(cors(this.corsOptions()));
+
     this.server.use(cookieSession({ secret: COOKIE_SESSION_SECRET }));
-    this.server.use(cookieParser('my secret here'));
+    this.server.use(cookieParser(COOKIE_STORAGE_SECRET));
 
     // do something with the session
     this.server.use(this.count.bind(this));

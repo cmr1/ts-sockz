@@ -1,5 +1,6 @@
 import 'colors';
 import { UserInfo } from 'os';
+import cors from 'cors';
 import Convert from 'ansi-to-html';
 // import { Socket } from 'net';
 import { Express } from 'express';
@@ -39,6 +40,7 @@ export interface ISockzBase {
 
 export interface ISockzWebApp {
   ctl: SockzController;
+  cors?: cors.CorsOptions;
   server: Express;
 }
 

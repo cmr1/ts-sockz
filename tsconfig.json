@@ -15,6 +15,7 @@
       "@types/node",
       "@types/ws",
       "@types/pem",
+      "@types/cors",
       "@types/express",
       "@types/cookie-parser",
       "@types/cookie-session",
