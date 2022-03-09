@@ -11,7 +11,17 @@ const COOKIE_SESSION_SECRET = 'super secret';
 
 // Better logger?
 // From: https://github.com/expressjs/express/blob/master/examples/cookies/index.js
+//-----------------------------------
 // var logger = require('morgan');
+
+//-----------------------------------
+// Custom session interface typing
+//-----------------------------------
+// declare module 'express-session' {
+//   export interface SessionData {
+//     user: { [key: string]: any };
+//   }
+// }
 
 export class SockzWebApp extends SockzBase implements ISockzWebApp {
   public server: Express;
@@ -84,6 +94,10 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // });
   }
 
+  //-----------------------------------
+  // Auth example (not functional)
+  // From: https://github.com/expressjs/express/blob/master/examples/auth/index.js
+  //-----------------------------------
   // private auth() {
   //   this.server.set('view engine', 'ejs');
   //   this.server.set('views', path.join(__dirname, 'views'));
