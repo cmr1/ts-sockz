@@ -5,4 +5,5 @@ export * from './SockzClient';
 export * from './SockzController';
 export * from './SockzLogger';
 export * from './SockzRelay';
+export * from './SockzWebApp';
 export * from './SockzWebClient';
