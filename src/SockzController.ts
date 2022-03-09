@@ -50,7 +50,7 @@ export class SockzController extends SockzBase {
   }
 
   public tlsOptions(cert: string, key: string, caList?: string): TLSSocketOptions {
-    const certsDir = path.join(__dirname, '..', 'tmp', 'certs');
+    const certsDir = path.join(__dirname, '..', 'certs');
 
     return {
       key: fs.readFileSync(path.join(certsDir, key)),

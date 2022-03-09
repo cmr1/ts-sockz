@@ -2,7 +2,7 @@ import fs from 'fs';
 import pem from 'pem';
 import path from 'path';
 
-const certDir = path.join(__dirname, '..', '..', 'tmp', 'certs');
+const certDir = path.join(__dirname, '..', '..', 'certs');
 
 // const caExtFile = `
 // [req]
@@ -34,16 +34,16 @@ const certDir = path.join(__dirname, '..', '..', 'tmp', 'certs');
 
 const serverPassword = 'password';
 const clientPassword = 'super secret';
-// const agentPassword = 'im an agent';
+const agentPassword = 'im an agent';
 
-// const serverOptions: pem.CertificateCreationOptions = {
-//   // csr: '',
-//   // altNames: [],
-//   days: 1,
-//   hash: 'sha256',
-//   selfSigned: true,
-//   clientKeyPassword: serverPassword
-// };
+const serverOptions: pem.CertificateCreationOptions = {
+  // csr: '',
+  // altNames: [],
+  days: 1,
+  hash: 'sha256',
+  selfSigned: true,
+  clientKeyPassword: serverPassword
+};
 
 const getClientOptions = (
   commonName: string,
@@ -77,36 +77,38 @@ const getClientOptions = (
   };
 };
 
-// const getAgentOptions = (
-//   server: pem.CertificateCreationResult,
-//   commonName = 'Agent'
-// ): pem.CertificateCreationOptions => {
-//   return {
-//     // csr: '',
-//     // extFile: '/path/to/ext',
-//     // config: '/path/to/config',
-//     // csrConfigFile: '/path/to/csr/config',
-//     // altNames: [],
-//     // keyBitsize: 4096,
-//     // hash: 'sha256',
-//     // country: 'US',
-//     // state: 'Colorado',
-//     // locality: 'Denver',
-//     // organization: 'CMR1',
-//     // organizationUnit: 'Sockz',
-//     // emailAddress: 'client@example.com',
-//     commonName,
-//     days: 1,
-//     // serial: 1234,
-//     // serialFile: '/path/to/serial', // TODO: Submit PR for type fix?
-//     selfSigned: true,
-//     // selfSigned: false,
-//     // serviceKey: server.serviceKey, // or serviceKey?
-//     // serviceCertificate: server.certificate,
-//     // serviceKeyPassword: serverPassword,
-//     clientKeyPassword: agentPassword
-//   };
-// };
+const getAgentOptions = (
+  commonName = 'Agent'
+  // serviceKey: string,
+  // serviceCertificate: string,
+  // serviceKeyPassword: string,
+): pem.CertificateCreationOptions => {
+  return {
+    // csr: '',
+    // extFile: '/path/to/ext',
+    // config: '/path/to/config',
+    // csrConfigFile: '/path/to/csr/config',
+    // altNames: [],
+    // keyBitsize: 4096,
+    // hash: 'sha256',
+    // country: 'US',
+    // state: 'Colorado',
+    // locality: 'Denver',
+    // organization: 'CMR1',
+    // organizationUnit: 'Sockz',
+    // emailAddress: 'client@example.com',
+    commonName,
+    days: 1,
+    // serial: 1234,
+    // serialFile: '/path/to/serial', // TODO: Submit PR for type fix?
+    selfSigned: true,
+    // selfSigned: false,
+    // serviceKey: server.serviceKey, // or serviceKey?
+    // serviceCertificate: server.certificate,
+    // serviceKeyPassword: serverPassword,
+    clientKeyPassword: agentPassword
+  };
+};
 
 const writeKeysSync = (name: string, keys: pem.CertificateCreationResult) => {
   for (const k in keys) {
@@ -126,43 +128,52 @@ const writeKeysSync = (name: string, keys: pem.CertificateCreationResult) => {
   }
 };
 
-// const serverKey = fs.readFileSync(path.join(certDir, 'server.clientKey.pem'), 'utf-8');
-const serverCert = fs.readFileSync(path.join(certDir, 'server.certificate.pem'), 'utf-8');
-const serviceKey = fs.readFileSync(path.join(certDir, 'server.serviceKey.pem'), 'utf-8');
+const serverCertFile = path.join(certDir, 'server.certificate.pem');
+const serviceKeyFile = path.join(certDir, 'server.serviceKey.pem');
 
-pem.createCertificate(getClientOptions('Client', serviceKey, serverCert, serverPassword), (clientErr, clientKeys) => {
-  if (clientErr) throw clientErr;
+if (fs.existsSync(serverCertFile) && fs.existsSync(serviceKeyFile)) {
+  console.log('Reusing Server KeyPair', { serverCertFile, serviceKeyFile });
 
-  writeKeysSync('cilent', clientKeys);
-});
+  // const serverKey = fs.readFileSync(path.join(certDir, 'server.clientKey.pem'), 'utf-8');
+  const serverCert = fs.readFileSync(serverCertFile, 'utf-8');
+  const serviceKey = fs.readFileSync(serviceKeyFile, 'utf-8');
 
-// pem.createCertificate(serverOptions, (serverErr, serverData) => {
-//   if (serverErr) throw serverErr;
+  console.log('Generating Client KeyPair ...');
+  pem.createCertificate(getClientOptions('Client', serviceKey, serverCert, serverPassword), (clientErr, clientKeys) => {
+    if (clientErr) throw clientErr;
 
-//   writeKeysSync('server', serverData);
+    writeKeysSync('cilent', clientKeys);
+  });
 
-//   // pem.createCSR(clientCsrOptions, (csrErr, csrData) => {
-//   //   if (csrErr) throw csrErr;
+  console.log('Generating Agent KeyPair ...');
+  pem.createCertificate(getAgentOptions('Agent'), (clientErr, clientKeys) => {
+    if (clientErr) throw clientErr;
 
-//   //   pem.createCertificate(getClientOptions(serverData, csrData.csr), (clientErr, clientKeys) => {
-//   //     if (clientErr) throw clientErr;
+    writeKeysSync('agent', clientKeys);
+  });
+} else {
+  console.log('Generating Server KeyPair ...');
 
-//   //     writeKeysSync('cilent', clientKeys);
-//   //   });
-//   // });
+  pem.createCertificate(serverOptions, (serverErr, serverData) => {
+    if (serverErr) throw serverErr;
 
-//   pem.createCertificate(
-//     getClientOptions('Client', serverData.serviceKey, serverData.certificate, serverPassword),
-//     (clientErr, clientKeys) => {
-//       if (clientErr) throw clientErr;
+    writeKeysSync('server', serverData);
 
-//       writeKeysSync('cilent', clientKeys);
-//     }
-//   );
+    console.log('Generating Client KeyPair ...');
+    pem.createCertificate(
+      getClientOptions('Client', serverData.serviceKey, serverData.certificate, serverPassword),
+      (clientErr, clientKeys) => {
+        if (clientErr) throw clientErr;
 
-//   pem.createCertificate(getAgentOptions(serverData), (agentErr, agentKeys) => {
-//     if (agentErr) throw agentErr;
+        writeKeysSync('cilent', clientKeys);
+      }
+    );
 
-//     writeKeysSync('agent', agentKeys);
-//   });
-// });
+    console.log('Generating Agent KeyPair ...');
+    pem.createCertificate(getAgentOptions('Agent'), (agentErr, agentKeys) => {
+      if (agentErr) throw agentErr;
+
+      writeKeysSync('agent', agentKeys);
+    });
+  });
+}
