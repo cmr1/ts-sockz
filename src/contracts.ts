@@ -3,7 +3,6 @@ import { UserInfo } from 'os';
 import Convert from 'ansi-to-html';
 // import { Socket } from 'net';
 import { Express } from 'express';
-import { Server as WebServer } from 'https';
 import { TLSSocket, PeerCertificate } from 'tls';
 import { WebSocket } from 'ws';
 import { SockzController } from './SockzController';
