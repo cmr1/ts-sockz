@@ -1,0 +1,19 @@
+#!/bin/bash
+
+creds=${1:-client}
+
+sockz_dir=$(dirname $(dirname $(readlink -f $(which sockz))))
+certs_dir=$sockz_dir/certs
+
+if [ ! -d $certs_dir ]; then
+  echo "Missing expected certs dir: $certs_dir"
+  exit 1
+fi
+
+for f in $certs_dir/$creds.*; do
+  echo "$f"
+  cat $f
+  echo ""
+  echo ""
+  echo ""
+done
