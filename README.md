@@ -8,6 +8,7 @@ TypeScript - Fun with sockets
 - [Defaults](#defaults)
 - [Advanced](#advanced)
 - [Environment](#environment)
+- [WebClient](#webclient)
 - [Documentation](https://cmr1.github.io/ts-sockz)
 
 ## Simple
@@ -84,12 +85,20 @@ To customize the session prompt:
 ```bash
 # Start a server and use poop for client prompt
 npx sockz server 0.0.0.0 1111 2222 8080 "💩 "
-# Connect a client
-netcat localhost 2222
-# Client connection output
-[ID] Client is ready
-💩 help # send "help" cmd to control server
-HELP: Commands: reg, ping, info, help, exit, ls, use
+
+# Connect an authorized client
+ncat --ssl --ssl-cert certs/client_cert.pem --ssl-key certs/client_key.pem localhost 2222
+# Authorized client connection output
+Authorized: Client
+[id] SockzClient is ready
+sockz> help
+HELP: Commands: reg, whoami, exit, ping, info, help, ls, use
+sockz>
+
+# Connect an unauthorized client (use agent key)
+ncat --ssl --ssl-cert certs/agent_cert.pem --ssl-key certs/agent_key.pem localhost 2222
+# Unuthorized client connection output
+Unauthorized: Agent (DEPTH_ZERO_SELF_SIGNED_CERT)
 ```
 
 Install globally to run without `npx`
@@ -137,3 +146,9 @@ AGENT_KEY_NAME = 'agent_key.pem'
 # Comma separated list of ca cert names (optional)
 AGENT_CA_LIST = ''
 ```
+
+## WebClient
+
+Visit [https://localhost:8080/](https://localhost:8080/) in your browser
+
+*Self-signed cert, will have a warning*
