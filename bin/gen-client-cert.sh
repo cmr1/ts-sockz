@@ -20,7 +20,7 @@ openssl req \
 # sign with server_cert
 openssl x509 \
 	-req \
-	-extfile <(printf "[v3_req]\nextendedKeyUsage=serverAuth") \
+	-extfile <(printf "[v3_req]\nextendedKeyUsage=clientAuth") \
 	-extensions v3_req \
 	-in $certs_dir/${client_name}_csr.pem \
 	-CA $certs_dir/$server_cert \
