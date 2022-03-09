@@ -5,7 +5,7 @@ const { SockzController } = require('../dist');
 const [cmd, src, role, ...args] = [...process.argv];
 const ctl = new SockzController(...args);
 
-if (/(pem|gen|certs|gen-certs)/i.test(role)) {
+if (/(pem|certs|gen-certs)/i.test(role)) {
   require('../dist/bin/pem');
 } else if (/agent/i.test(role)) {
   ctl.startAgent();
