@@ -1,0 +1,25 @@
+version: "3.5"
+
+services:
+  sockz-server:
+    build: .
+    volumes:
+      - .:/app/data
+      - laravel-api-ngrok
+    ports:
+      - 22:2211
+      - 25:2525
+      - 53:5353
+      - 80:8888
+      - 443:4433
+      - 587:5877
+      - 993:9933
+      - 995:9955
+      - 4190:4199
+    environment:
+      EXAMPLE_VAR: something
+
+# networks:
+#   default:
+#     external:
+#       name: host
