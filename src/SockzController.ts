@@ -68,6 +68,29 @@ export class SockzController extends SockzBase {
     this.app = new SockzWebApp(this);
   }
 
+  get docPath(): string {
+    return `controllers/${this.id}`;
+  }
+
+  get docData(): object {
+    return {
+      id: this.id,
+      host: this.host,
+      prompt: this.prompt,
+      agents: this.agents.map((ag) => ag.id),
+      clients: this.clients.map((cl) => cl.id),
+      webClients: this.webClients.map((wc) => wc.id),
+      webPort: this.webPort,
+      agentPort: this.agentPort,
+      clientPort: this.clientPort,
+      systemInfo: this.systemInfo
+    };
+  }
+
+  public async save() {
+    await this.database.doc(this.docPath).set(this.docData);
+  }
+
   public tlsOptions(cert: string, key: string, caList?: string): TLSSocketOptions {
     const certsDir = path.join(__dirname, '..', 'certs');
 
@@ -110,6 +133,8 @@ export class SockzController extends SockzBase {
     this.wss = new WebSocketServer({ server: this.web });
     this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
     this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
+
+    this.save();
   }
 
   public listen(): void {
@@ -236,7 +261,7 @@ export class SockzController extends SockzBase {
     const client = new SockzWebClient(this, ws);
     // client.init();
     this.webClients.push(client);
-
+    this.save();
     this.debug();
     // ws.on('message', function message(data) {
     //   console.log('received: %s', data);
@@ -249,6 +274,7 @@ export class SockzController extends SockzBase {
     const agent = new SockzAgent(this, socket);
     agent.init();
     this.agents.push(agent);
+    this.save();
     this.debug();
   }
 
@@ -256,6 +282,7 @@ export class SockzController extends SockzBase {
     const client = new SockzClient(this, socket);
     client.init();
     this.clients.push(client);
+    this.save();
     this.debug();
   }
 
@@ -272,6 +299,7 @@ export class SockzController extends SockzBase {
       this.log.warn(`Invalid target type, cannot disconnect:`, target);
     }
 
+    this.save();
     this.debug();
   }
 
