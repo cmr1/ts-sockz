@@ -15,9 +15,9 @@
       "@types/node",
       "@types/ws",
       "@types/pem",
+      "@types/got",
       "@types/cors",
       "@types/express",
-      "@types/firebase",
       "@types/cookie-parser",
       "@types/cookie-session",
       "@types/express-session"

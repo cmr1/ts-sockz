@@ -1,3 +1,4 @@
+import 'dotenv/config';
 export * from './contracts';
 export * from './SockzAgent';
 export * from './SockzBase';

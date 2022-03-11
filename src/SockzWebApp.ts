@@ -1,51 +1,26 @@
 import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
+// import * as got from 'got';
+import * as jose from 'jose';
 import express, { Express } from 'express';
 // import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import cookieSession from 'cookie-session';
+import { auth, requiresAuth } from 'express-openid-connect';
 import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 
 // Import the functions you need from the SDKs you need
-
-import { initializeApp } from "firebase/app";
-
+// import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-// TODO: Add SDKs for Firebase products that you want to use
+const { SESSION_SECRET } = process.env;
 
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-
-// Your web app's Firebase configuration
-
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-
-// const firebaseConfig = {
-//   apiKey: "AIzaSyDJFRctLB9Gyxl0lrnJ42_ps35U2Tqpx6Q",
-//   authDomain: "sockz-test.firebaseapp.com",
-//   projectId: "sockz-test",
-//   storageBucket: "sockz-test.appspot.com",
-//   messagingSenderId: "722877836322",
-//   appId: "1:722877836322:web:cd59ecd02fc4a3aa90ee7b",
-//   measurementId: "G-70LL15LVM1"
-// };
-
-
-// Initialize Firebase
-// const app = initializeApp(firebaseConfig);
-
-// const firebaseConfig = {
-//   apiKey: "AIzaSyDJFRctLB9Gyxl0lrnJ42_ps35U2Tqpx6Q",
-//   authDomain: "sockz-test.firebaseapp.com",
-//   projectId: "sockz-test",
-//   keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json');
-// };
-
-const COOKIE_SESSION_SECRET = 'session secret';
+// interface ExampleApiResponse {
+//   message: string;
+// }
 
 // Better logger?
 // From: https://github.com/expressjs/express/blob/master/examples/cookies/index.js
@@ -70,11 +45,14 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     this.server = express();
     this.database = new Firestore({
-      projectId: "sockz-test",
+      projectId: 'sockz-test',
       keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json')
     });
 
+    this.views();
+    this.auth();
     this.routes();
+    this.static();
   }
 
   public get publicDir(): string {
@@ -116,33 +94,181 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       // Enter new data into the document.
       await document.set({
         title: 'Welcome to Firestore',
-        body: 'Hello World',
+        body: 'Hello World'
       });
       console.log('Entered new data into the document');
 
       // Update an existing document.
       await document.update({
-        body: 'My first Firestore app',
+        body: 'My first Firestore app'
       });
       console.log('Updated an existing document');
 
       // Read the document.
       const doc = await document.get();
-      console.log('Read the document');
+      console.log('Read the document', doc);
 
       // // Delete the document.
       await document.delete();
       console.log('Deleted the document');
-    }
+    };
     quickstart();
     res.send('true');
+  }
+
+  private auth(): void {
+    this.server.use(
+      auth({
+        issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
+        baseURL: process.env.BASE_URL,
+        clientID: process.env.AUTH0_CLIENT_ID,
+        secret: process.env.SESSION_SECRET,
+        authRequired: false,
+        auth0Logout: true,
+        clientSecret: process.env.CLIENT_SECRET,
+        authorizationParams: {
+          response_type: 'code',
+          audience: process.env.AUTH0_AUDIENCE
+        },
+        afterCallback: (req, res, session) => {
+          const claims = jose.decodeJwt(session.id_token); // using jose library to decode JWT
+          // if (claims.org_id !== 'Required Organization') {
+          //   throw new Error('User is not a part of the Required Organization');
+          // }
+
+          console.log('session', session);
+          console.log('claims', claims);
+
+          return session;
+        }
+      })
+    );
+
+    this.server.use((req, res, next) => {
+      res.locals.isAuthenticated = req.oidc.isAuthenticated();
+      res.locals.activeRoute = req.originalUrl.replace(/^\//, '');
+
+      next();
+    });
+
+    // > Sign Up
+
+    this.server.get('/sign-up', (req, res) => {
+      res.oidc.login({
+        authorizationParams: {
+          screen_hint: 'signup'
+        }
+      });
+    });
+
+    // > Home
+
+    this.server.get('/', (req, res) => {
+      res.render('home');
+    });
+
+    // > Profile
+
+    this.server.get('/profile', requiresAuth(), (req, res) => {
+      console.log(req.oidc.idTokenClaims);
+      console.log(req.session);
+      // console.log(req);
+      res.render('profile', {
+        user: req.oidc.user
+      });
+    });
+
+    // > External API
+
+    this.server.get('/external-api', (req, res) => {
+      res.render('external-api');
+    });
+
+    this.server.get('/external-api/public-message', async (req, res) => {
+      const message = 'no';
+
+      // try {
+      //   const body: ExampleApiResponse = await got.get(
+      //     `${process.env.SERVER_URL}/api/messages/public-message`,
+      //   ).json();
+
+      //   message = body.message;
+      // } catch (e) {
+      //   message = 'Unable to retrieve message.';
+      // }
+
+      res.render('external-api', { message });
+    });
+
+    this.server.get('/external-api/protected-message', requiresAuth(), async (req, res) => {
+      const { token_type, access_token } = req.oidc.accessToken as { token_type: string; access_token: string };
+      const data = jose.decodeJwt(access_token);
+      const message = JSON.stringify({ data, token_type, access_token }, null, 2);
+
+      console.log(message);
+
+      // try {
+      //   const body: ExampleApiResponse = await got.get(
+      //     `${process.env.SERVER_URL}/api/messages/protected-message`,
+      //     {
+      //       headers: {
+      //         Authorization: `${token_type} ${access_token}`,
+      //       },
+      //     },
+      //   ).json();
+
+      //   message = body.message;
+      // } catch (e) {
+      //   message = 'Unable to retrieve message.';
+      // }
+
+      res.render('external-api', { message });
+    });
+
+    this.server.get('/sign-up/:page/:section?', (req, res) => {
+      const { page, section } = req.params;
+
+      res.oidc.login({
+        returnTo: section ? `${page}/${section}` : page,
+        authorizationParams: {
+          screen_hint: 'signup'
+        }
+      });
+    });
+
+    this.server.get('/login/:page/:section?', (req, res) => {
+      const { page, section } = req.params;
+
+      res.oidc.login({
+        returnTo: /profile/.test(page) ? '/' : section ? `${page}/${section}` : page
+      });
+    });
+
+    this.server.get('/logout/:page/:section?', (req, res) => {
+      // const { page } = req.params;
+
+      // const isProfile = /profile/i.test(page);
+
+      res.oidc.logout();
+    });
+  }
+
+  private static(dir?: string): void {
+    const staticDir = dir || this.hasBuild ? this.buildDir : this.publicDir;
+
+    this.server.use(express.static(staticDir));
+  }
+
+  private views(): void {
+    this.server.set('views', path.join(__dirname, 'views'));
+    this.server.set('view engine', 'pug');
   }
 
   private routes(): void {
     this.server.use(cors(this.corsOptions()));
 
-    this.server.use(cookieSession({ secret: COOKIE_SESSION_SECRET }));
-    this.server.use(cookieParser(COOKIE_SESSION_SECRET));
+    this.server.use(cookieSession({ secret: SESSION_SECRET }));
+    this.server.use(cookieParser(SESSION_SECRET));
 
     // do something with the session
     this.server.use(this.count.bind(this));
@@ -177,10 +303,6 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       if (req.body.remember) res.cookie('remember', 1, { maxAge: minute });
       res.redirect('back');
     });
-
-    const staticDir = this.hasBuild ? this.buildDir : this.publicDir;
-
-    this.server.use(express.static(staticDir));
 
     // this.server.use('/console', express.static('public/build'));
 

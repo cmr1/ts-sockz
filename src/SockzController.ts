@@ -14,7 +14,7 @@ import { SockzWebApp } from './SockzWebApp';
 import { SockzWebClient } from './SockzWebClient';
 
 const DEFAULT_HOST = '127.0.0.1';
-const DEFAULT_WEB_PORT = 8080;
+const DEFAULT_WEB_PORT = 4040;
 const DEFAULT_AGENT_PORT = 1111;
 const DEFAULT_CLIENT_PORT = 2222;
 const DEFAULT_PROMPT = `sockz> `;
