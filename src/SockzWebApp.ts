@@ -17,7 +17,7 @@ import { SockzController } from './SockzController';
 // import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-const { SESSION_SECRET, STRIPE_API_VER = '2020-08-27', STRIPE_PUB_KEY, STRIPE_SECRET_KEY } = process.env;
+const { SESSION_SECRET, STRIPE_SECRET_KEY } = process.env;
 
 // interface ExampleApiResponse {
 //   message: string;
@@ -49,7 +49,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     if (STRIPE_SECRET_KEY) {
       this.stripe = new Stripe(STRIPE_SECRET_KEY, {
-        apiVersion: '2020-08-27',
+        apiVersion: '2020-08-27'
       });
     } else {
       throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
@@ -295,7 +295,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server.get('/customer', (req, res) => {
       const createCustomer = async () => {
         const params: Stripe.CustomerCreateParams = {
-          description: 'test customer',
+          description: 'test customer'
         };
 
         const customer: Stripe.Customer = await this.stripe.customers.create(params);
@@ -305,7 +305,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         res.send('YAY');
       };
       createCustomer();
-    })
+    });
 
     this.server.get('/test', (req, res) => {
       if (req.cookies.remember) {
