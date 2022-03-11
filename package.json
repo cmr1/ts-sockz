@@ -35,6 +35,7 @@
   "author": "CMR1",
   "license": "MIT",
   "dependencies": {
+    "@google-cloud/firestore": "^5.0.2",
     "@types/firebase": "^3.2.1",
     "ansi-to-html": "^0.7.2",
     "colors": "^1.4.0",

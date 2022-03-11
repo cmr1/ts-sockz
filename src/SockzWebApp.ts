@@ -13,6 +13,8 @@ import { SockzController } from './SockzController';
 
 import { initializeApp } from "firebase/app";
 
+import { Firestore } from '@google-cloud/firestore';
+
 // TODO: Add SDKs for Firebase products that you want to use
 
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -22,19 +24,26 @@ import { initializeApp } from "firebase/app";
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDJFRctLB9Gyxl0lrnJ42_ps35U2Tqpx6Q",
-  authDomain: "sockz-test.firebaseapp.com",
-  projectId: "sockz-test",
-  storageBucket: "sockz-test.appspot.com",
-  messagingSenderId: "722877836322",
-  appId: "1:722877836322:web:cd59ecd02fc4a3aa90ee7b",
-  measurementId: "G-70LL15LVM1"
-};
+// const firebaseConfig = {
+//   apiKey: "AIzaSyDJFRctLB9Gyxl0lrnJ42_ps35U2Tqpx6Q",
+//   authDomain: "sockz-test.firebaseapp.com",
+//   projectId: "sockz-test",
+//   storageBucket: "sockz-test.appspot.com",
+//   messagingSenderId: "722877836322",
+//   appId: "1:722877836322:web:cd59ecd02fc4a3aa90ee7b",
+//   measurementId: "G-70LL15LVM1"
+// };
 
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// const app = initializeApp(firebaseConfig);
+
+// const firebaseConfig = {
+//   apiKey: "AIzaSyDJFRctLB9Gyxl0lrnJ42_ps35U2Tqpx6Q",
+//   authDomain: "sockz-test.firebaseapp.com",
+//   projectId: "sockz-test",
+//   keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json');
+// };
 
 const COOKIE_SESSION_SECRET = 'session secret';
 
@@ -54,11 +63,16 @@ const COOKIE_SESSION_SECRET = 'session secret';
 
 export class SockzWebApp extends SockzBase implements ISockzWebApp {
   public server: Express;
+  public database: Firestore;
 
   constructor(public ctl: SockzController, public cors?: cors.CorsOptions) {
     super();
 
     this.server = express();
+    this.database = new Firestore({
+      projectId: "sockz-test",
+      keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json')
+    });
 
     this.routes();
   }
@@ -95,6 +109,32 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private health(req, res) {
+    const quickstart = async () => {
+      // Obtain a document reference.
+      const document = this.database.doc('posts/intro-to-firestore');
+
+      // Enter new data into the document.
+      await document.set({
+        title: 'Welcome to Firestore',
+        body: 'Hello World',
+      });
+      console.log('Entered new data into the document');
+
+      // Update an existing document.
+      await document.update({
+        body: 'My first Firestore app',
+      });
+      console.log('Updated an existing document');
+
+      // Read the document.
+      const doc = await document.get();
+      console.log('Read the document');
+
+      // // Delete the document.
+      await document.delete();
+      console.log('Deleted the document');
+    }
+    quickstart();
     res.send('true');
   }
 
