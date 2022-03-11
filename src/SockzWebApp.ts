@@ -19,6 +19,167 @@ import { Firestore } from '@google-cloud/firestore';
 
 const { SESSION_SECRET, STRIPE_SECRET_KEY } = process.env;
 
+interface CreateUserParams {
+  sub?: string;
+  name?: string;
+  email?: string;
+  picture?: string;
+  nickname?: string;
+  email_verified?: boolean;
+  stripe_customer_id?: string;
+}
+
+class SockzUser extends SockzBase implements CreateUserParams {
+  db: Firestore;
+  app: SockzWebApp;
+  sub?: string;
+  name?: string;
+  email?: string;
+  picture?: string;
+  nickname?: string;
+  email_verified?: boolean;
+  stripe_customer_id?: string;
+
+  constructor(app: SockzWebApp, data: CreateUserParams) {
+    super();
+
+    this.app = app;
+    this.db = app.database;
+    this.sub = data.sub;
+    this.name = data.name;
+    this.email = data.email;
+    this.picture = data.picture;
+    this.nickname = data.nickname;
+    this.email_verified = data.email_verified;
+    this.stripe_customer_id = data.stripe_customer_id;
+  }
+
+  get docPath(): string {
+    return `users/${this.id}`;
+  }
+
+  get doc() {
+    return this.db.doc(this.docPath);
+  }
+
+  get data() {
+    const { id, sub, name, email, picture, nickname, email_verified, stripe_customer_id } = this;
+
+    return { id, sub, name, email, picture, nickname, email_verified, stripe_customer_id };
+  }
+
+  async get() {
+    return await this.doc.get();
+  }
+
+  async delete() {
+    const existing = await this.doc.get();
+
+    if (existing) {
+      await this.doc.delete();
+      this.log.debug('Deleted the document');
+    } else {
+      this.log.debug('Cannot delete user, does not exist');
+    }
+
+    return this.doc;
+  }
+
+  async save(data?: object) {
+    try {
+      await this.doc.get();
+      await await this.doc.update({ ...this.data, ...data });
+      this.log.debug('Updated an existing document');
+    } catch (err) {
+      this.log.warn(err);
+      await this.doc.set({ ...this.data, ...data });
+      this.log.debug('Entered new data into the document');
+    }
+
+    return this.doc;
+  }
+
+  async register() {
+    await this.findOrCreateStripeCustomer();
+  }
+
+  private async findOrCreateStripeCustomer(): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
+    const findCustomer = await this.findStripeCustomer();
+
+    if (findCustomer) {
+      return findCustomer;
+    } else {
+      return await this.createStripeCustomer();
+    }
+  }
+
+  private async createStripeCustomer(): Promise<Stripe.Customer> {
+    const params: Stripe.CustomerCreateParams = {
+      name: this.name,
+      email: this.email,
+      // metadata: this.data,
+      description: this.nickname || this.name
+    };
+
+    const customer: Stripe.Customer = await this.app.stripe.customers.create(params);
+
+    this.log.debug('Created stripe customer:', customer);
+
+    this.stripe_customer_id = customer.id;
+
+    await this.save();
+
+    return customer;
+  }
+
+  private async findStripeCustomer(): Promise<Stripe.Customer | Stripe.DeletedCustomer | null> {
+    if (this.stripe_customer_id) {
+      const customer: Stripe.Customer | Stripe.DeletedCustomer = await this.app.stripe.customers.retrieve(
+        this.stripe_customer_id
+      );
+
+      this.log.debug('Retrieved stripe customer:', customer);
+
+      return customer;
+    } else {
+      return null;
+    }
+  }
+}
+
+declare module 'jose' {
+  export interface UserClaimsPayload extends jose.JWTPayload {
+    iss?: string;
+    sub?: string;
+    aud?: string | string[];
+    iat?: number;
+    exp?: number;
+    nonce?: string;
+    name?: string;
+    email?: string;
+    picture?: string;
+    nickname?: string;
+    updated_at?: Date;
+    email_verified?: boolean;
+  }
+}
+
+// Claims
+// {
+//   nickname: 'sockz-charlie',
+//   name: 'Charlie',
+//   picture: 'https://avatars.githubusercontent.com/u/101384222?v=4',
+//   updated_at: '2022-03-11T06:36:02.028Z',
+//   email: 'charlie@sockz.io',
+//   email_verified: true,
+//   iss: 'https://sockz.us.auth0.com/',
+//   sub: 'github|101384222',
+//   aud: 'tjJyiPvol4OBXiLLsC0idz9nt8EMeBGE',
+//   iat: 1646980562,
+//   exp: 1647016562,
+//   nonce: '1l09ZMJVQEGAKt4wfyhSuq9Ztpuxi6pj_c51M9UKPLo'
+// }
+
 // interface ExampleApiResponse {
 //   message: string;
 // }
@@ -98,32 +259,6 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private health(req, res) {
-    const quickstart = async () => {
-      // Obtain a document reference.
-      const document = this.database.doc('posts/intro-to-firestore');
-
-      // Enter new data into the document.
-      await document.set({
-        title: 'Welcome to Firestore',
-        body: 'Hello World'
-      });
-      console.log('Entered new data into the document');
-
-      // Update an existing document.
-      await document.update({
-        body: 'My first Firestore app'
-      });
-      console.log('Updated an existing document');
-
-      // Read the document.
-      const doc = await document.get();
-      console.log('Read the document', doc);
-
-      // // Delete the document.
-      await document.delete();
-      console.log('Deleted the document');
-    };
-    quickstart();
     res.send('true');
   }
 
@@ -141,14 +276,22 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
           response_type: 'code',
           audience: process.env.AUTH0_AUDIENCE
         },
-        afterCallback: (req, res, session) => {
-          const claims = jose.decodeJwt(session.id_token); // using jose library to decode JWT
+        afterCallback: async (req, res, session) => {
+          const claims: jose.UserClaimsPayload = jose.decodeJwt(session.id_token); // using jose library to decode JWT
           // if (claims.org_id !== 'Required Organization') {
           //   throw new Error('User is not a part of the Required Organization');
           // }
 
-          console.log('session', session);
-          console.log('claims', claims);
+          this.log.debug('session', session);
+          this.log.debug('claims', claims);
+
+          const data = jose.decodeJwt(session.access_token);
+          const message = JSON.stringify(data, null, 2);
+
+          this.log.debug(message);
+
+          const user = new SockzUser(this, claims);
+          await user.register();
 
           return session;
         }
@@ -181,9 +324,9 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // > Profile
 
     this.server.get('/profile', requiresAuth(), (req, res) => {
-      console.log(req.oidc.idTokenClaims);
-      console.log(req.session);
-      // console.log(req);
+      this.log.debug(req.oidc.idTokenClaims);
+      this.log.debug(req.session);
+      // this.log.debug(req);
       res.render('profile', {
         user: req.oidc.user
       });
@@ -216,7 +359,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       const data = jose.decodeJwt(access_token);
       const message = JSON.stringify({ data, token_type, access_token }, null, 2);
 
-      console.log(message);
+      this.log.debug(message);
 
       // try {
       //   const body: ExampleApiResponse = await got.get(
@@ -292,43 +435,28 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     this.server.get('/health', this.health.bind(this));
 
-    this.server.get('/customer', (req, res) => {
-      const createCustomer = async () => {
-        const params: Stripe.CustomerCreateParams = {
-          description: 'test customer'
-        };
+    // this.server.get('/test', (req, res) => {
+    //   if (req.cookies.remember) {
+    //     res.send('Remembered :). Click to <a href="/forget">forget</a>!.');
+    //   } else {
+    //     res.send(
+    //       '<form action="/remember" method="post"><p>Check to <label>' +
+    //         '<input type="checkbox" name="remember"/> remember me</label> ' +
+    //         '<input type="submit" value="Submit"/>.</p></form>'
+    //     );
+    //   }
+    // });
 
-        const customer: Stripe.Customer = await this.stripe.customers.create(params);
+    // this.server.get('/forget', (req, res) => {
+    //   res.clearCookie('remember');
+    //   res.redirect('back');
+    // });
 
-        console.log('Created stripe customer:', customer);
-
-        res.send('YAY');
-      };
-      createCustomer();
-    });
-
-    this.server.get('/test', (req, res) => {
-      if (req.cookies.remember) {
-        res.send('Remembered :). Click to <a href="/forget">forget</a>!.');
-      } else {
-        res.send(
-          '<form action="/remember" method="post"><p>Check to <label>' +
-            '<input type="checkbox" name="remember"/> remember me</label> ' +
-            '<input type="submit" value="Submit"/>.</p></form>'
-        );
-      }
-    });
-
-    this.server.get('/forget', (req, res) => {
-      res.clearCookie('remember');
-      res.redirect('back');
-    });
-
-    this.server.post('/remember', (req, res) => {
-      const minute = 60000;
-      if (req.body.remember) res.cookie('remember', 1, { maxAge: minute });
-      res.redirect('back');
-    });
+    // this.server.post('/remember', (req, res) => {
+    //   const minute = 60000;
+    //   if (req.body.remember) res.cookie('remember', 1, { maxAge: minute });
+    //   res.redirect('back');
+    // });
 
     // this.server.use('/console', express.static('public/build'));
 
@@ -400,7 +528,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   //   // Authenticate using our plain-object database of doom!
 
   //   function authenticate(name, pass, fn) {
-  //     if (!module.parent) console.log('authenticating %s:%s', name, pass);
+  //     if (!module.parent) this.log.debug('authenticating %s:%s', name, pass);
   //     const user = users[name];
   //     // query the db for the given username
   //     if (!user) return fn(null, null);
