@@ -9,8 +9,34 @@ import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 
+// Import the functions you need from the SDKs you need
+
+import { initializeApp } from "firebase/app";
+
+// TODO: Add SDKs for Firebase products that you want to use
+
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+
+// Your web app's Firebase configuration
+
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDJFRctLB9Gyxl0lrnJ42_ps35U2Tqpx6Q",
+  authDomain: "sockz-test.firebaseapp.com",
+  projectId: "sockz-test",
+  storageBucket: "sockz-test.appspot.com",
+  messagingSenderId: "722877836322",
+  appId: "1:722877836322:web:cd59ecd02fc4a3aa90ee7b",
+  measurementId: "G-70LL15LVM1"
+};
+
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
 const COOKIE_SESSION_SECRET = 'session secret';
-const COOKIE_STORAGE_SECRET = 'storage secret';
 
 // Better logger?
 // From: https://github.com/expressjs/express/blob/master/examples/cookies/index.js
@@ -76,7 +102,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server.use(cors(this.corsOptions()));
 
     this.server.use(cookieSession({ secret: COOKIE_SESSION_SECRET }));
-    this.server.use(cookieParser(COOKIE_STORAGE_SECRET));
+    this.server.use(cookieParser(COOKIE_SESSION_SECRET));
 
     // do something with the session
     this.server.use(this.count.bind(this));
