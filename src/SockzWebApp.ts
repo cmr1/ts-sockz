@@ -343,6 +343,16 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }
     });
 
+    this.server.get('/pricing', requiresAuth(), async (req, res) => {
+      const plans = await this.stripe.plans.list();
+
+      this.log.warn('Loaded plans', plans);
+
+      res.render('pricing', {
+        plans: plans.data
+      });
+    });
+
     // > External API
 
     this.server.get('/external-api', (req, res) => {
