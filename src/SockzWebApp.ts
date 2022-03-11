@@ -5,9 +5,9 @@ import cors from 'cors';
 import * as jose from 'jose';
 import Stripe from 'stripe';
 import express, { Express } from 'express';
-// import session from 'express-session';
-import cookieParser from 'cookie-parser';
-import cookieSession from 'cookie-session';
+import session from 'express-session';
+// import cookieParser from 'cookie-parser';
+// import cookieSession from 'cookie-session';
 import { auth, requiresAuth } from 'express-openid-connect';
 import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
@@ -17,7 +17,7 @@ import { SockzController } from './SockzController';
 // import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-const { SESSION_SECRET, STRIPE_SECRET_KEY } = process.env;
+const { SESSION_SECRET = 'super secret session' } = process.env;
 
 interface CreateUserParams {
   sub?: string;
@@ -29,29 +29,9 @@ interface CreateUserParams {
   stripe_customer_id?: string;
 }
 
-class SockzUser extends SockzBase implements CreateUserParams {
-  db: Firestore;
-  app: SockzWebApp;
-  sub?: string;
-  name?: string;
-  email?: string;
-  picture?: string;
-  nickname?: string;
-  email_verified?: boolean;
-  stripe_customer_id?: string;
-
-  constructor(app: SockzWebApp, data: CreateUserParams) {
-    super();
-
-    this.app = app;
-    this.db = app.database;
-    this.sub = data.sub;
-    this.name = data.name;
-    this.email = data.email;
-    this.picture = data.picture;
-    this.nickname = data.nickname;
-    this.email_verified = data.email_verified;
-    this.stripe_customer_id = data.stripe_customer_id;
+class SockzUser extends SockzBase {
+  constructor(public app: SockzWebApp, public data: CreateUserParams) {
+    super(data.sub);
   }
 
   get docPath(): string {
@@ -59,13 +39,17 @@ class SockzUser extends SockzBase implements CreateUserParams {
   }
 
   get doc() {
-    return this.db.doc(this.docPath);
+    return this.app.database.doc(this.docPath);
   }
 
-  get data() {
-    const { id, sub, name, email, picture, nickname, email_verified, stripe_customer_id } = this;
-
-    return { id, sub, name, email, picture, nickname, email_verified, stripe_customer_id };
+  async exists(): Promise<boolean> {
+    try {
+      await this.doc.get();
+      return true;
+    } catch (err) {
+      this.log.warn(err);
+      return false;
+    }
   }
 
   async get() {
@@ -100,11 +84,21 @@ class SockzUser extends SockzBase implements CreateUserParams {
   }
 
   async register() {
+    if (await this.exists()) {
+      const document = await this.get();
+      const docData = document.data() as CreateUserParams;
+      this.data = { ...this.data, ...docData };
+    } else {
+      await this.save();
+    }
+
     await this.findOrCreateStripeCustomer();
   }
 
-  private async findOrCreateStripeCustomer(): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
+  public async findOrCreateStripeCustomer(): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
     const findCustomer = await this.findStripeCustomer();
+
+    this.log.debug('Finding customer', findCustomer);
 
     if (findCustomer) {
       return findCustomer;
@@ -113,29 +107,29 @@ class SockzUser extends SockzBase implements CreateUserParams {
     }
   }
 
-  private async createStripeCustomer(): Promise<Stripe.Customer> {
+  public async createStripeCustomer(): Promise<Stripe.Customer> {
     const params: Stripe.CustomerCreateParams = {
-      name: this.name,
-      email: this.email,
+      name: this.data.name,
+      email: this.data.email,
       // metadata: this.data,
-      description: this.nickname || this.name
+      description: this.data.nickname || this.data.name
     };
 
     const customer: Stripe.Customer = await this.app.stripe.customers.create(params);
 
     this.log.debug('Created stripe customer:', customer);
 
-    this.stripe_customer_id = customer.id;
+    this.data.stripe_customer_id = customer.id;
 
     await this.save();
 
     return customer;
   }
 
-  private async findStripeCustomer(): Promise<Stripe.Customer | Stripe.DeletedCustomer | null> {
-    if (this.stripe_customer_id) {
+  public async findStripeCustomer(): Promise<Stripe.Customer | Stripe.DeletedCustomer | null> {
+    if (this.data.stripe_customer_id) {
       const customer: Stripe.Customer | Stripe.DeletedCustomer = await this.app.stripe.customers.retrieve(
-        this.stripe_customer_id
+        this.data.stripe_customer_id
       );
 
       this.log.debug('Retrieved stripe customer:', customer);
@@ -164,22 +158,6 @@ declare module 'jose' {
   }
 }
 
-// Claims
-// {
-//   nickname: 'sockz-charlie',
-//   name: 'Charlie',
-//   picture: 'https://avatars.githubusercontent.com/u/101384222?v=4',
-//   updated_at: '2022-03-11T06:36:02.028Z',
-//   email: 'charlie@sockz.io',
-//   email_verified: true,
-//   iss: 'https://sockz.us.auth0.com/',
-//   sub: 'github|101384222',
-//   aud: 'tjJyiPvol4OBXiLLsC0idz9nt8EMeBGE',
-//   iat: 1646980562,
-//   exp: 1647016562,
-//   nonce: '1l09ZMJVQEGAKt4wfyhSuq9Ztpuxi6pj_c51M9UKPLo'
-// }
-
 // interface ExampleApiResponse {
 //   message: string;
 // }
@@ -192,11 +170,11 @@ declare module 'jose' {
 //-----------------------------------
 // Custom session interface typing
 //-----------------------------------
-// declare module 'express-session' {
-//   export interface SessionData {
-//     user: { [key: string]: any };
-//   }
-// }
+declare module 'express-session' {
+  export interface SessionData {
+    user: CreateUserParams;
+  }
+}
 
 export class SockzWebApp extends SockzBase implements ISockzWebApp {
   public stripe: Stripe;
@@ -207,20 +185,10 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     super();
 
     this.server = express();
+    this.stripe = this.ctl.stripe;
+    this.database = this.ctl.database;
 
-    if (STRIPE_SECRET_KEY) {
-      this.stripe = new Stripe(STRIPE_SECRET_KEY, {
-        apiVersion: '2020-08-27'
-      });
-    } else {
-      throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
-    }
-
-    this.database = new Firestore({
-      projectId: 'sockz-test',
-      keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json')
-    });
-
+    this.init();
     this.views();
     this.auth();
     this.routes();
@@ -246,6 +214,33 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     };
   }
 
+  public init() {
+    this.server.use(cors(this.corsOptions()));
+
+    this.server.use(
+      session({
+        secret: SESSION_SECRET,
+        resave: false,
+        saveUninitialized: true,
+        cookie: { secure: true }
+      })
+    );
+
+    // this.server.use(cookieSession({ secret: SESSION_SECRET }));
+    // this.server.use(cookieParser(SESSION_SECRET));
+
+    // do something with the session
+    this.server.use(this.count.bind(this));
+
+    // parses x-www-form-urlencoded
+    // this.server.use(express.urlencoded({ extended: false }));
+
+    // parses json data
+    // this.server.use(express.json());
+
+    this.server.get('/health', this.health.bind(this));
+  }
+
   public corsOptions(extra?: cors.CorsOptions): cors.CorsOptions {
     const opts = this.cors || this.corsDefault;
 
@@ -253,6 +248,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private count(req, res, next) {
+    this.log.debug('count()', req.session);
     req.session.count = (req.session.count || 0) + 1;
     this.log.debug('session viewed ' + req.session.count + ' times\n', req.session);
     next();
@@ -293,6 +289,10 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
           const user = new SockzUser(this, claims);
           await user.register();
 
+          req.session.user = user.data;
+
+          this.log.warn('afterCallback session', req.session, session);
+
           return session;
         }
       })
@@ -323,13 +323,24 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     // > Profile
 
-    this.server.get('/profile', requiresAuth(), (req, res) => {
+    this.server.get('/profile', requiresAuth(), async (req, res) => {
       this.log.debug(req.oidc.idTokenClaims);
       this.log.debug(req.session);
-      // this.log.debug(req);
-      res.render('profile', {
-        user: req.oidc.user
-      });
+
+      if (req.session.user) {
+        const user = new SockzUser(this, req.session.user);
+        const customer = await user.findStripeCustomer();
+
+        res.render('profile', {
+          user: req.oidc.user,
+          sockz: req.session.user,
+          customer: customer
+        });
+      } else {
+        res.render('profile', {
+          user: req.oidc.user
+        });
+      }
     });
 
     // > External API
@@ -394,14 +405,12 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       const { page, section } = req.params;
 
       res.oidc.login({
-        returnTo: /profile/.test(page) ? '/' : section ? `${page}/${section}` : page
+        returnTo: section ? `${page}/${section}` : page
       });
     });
 
     this.server.get('/logout/:page/:section?', (req, res) => {
       // const { page } = req.params;
-
-      // const isProfile = /profile/i.test(page);
 
       res.oidc.logout();
     });
@@ -419,22 +428,6 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private routes(): void {
-    this.server.use(cors(this.corsOptions()));
-
-    this.server.use(cookieSession({ secret: SESSION_SECRET }));
-    this.server.use(cookieParser(SESSION_SECRET));
-
-    // do something with the session
-    this.server.use(this.count.bind(this));
-
-    // parses x-www-form-urlencoded
-    this.server.use(express.urlencoded({ extended: false }));
-
-    // parses json data
-    // this.server.use(express.json());
-
-    this.server.get('/health', this.health.bind(this));
-
     // this.server.get('/test', (req, res) => {
     //   if (req.cookies.remember) {
     //     res.send('Remembered :). Click to <a href="/forget">forget</a>!.');
@@ -446,32 +439,25 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     //     );
     //   }
     // });
-
     // this.server.get('/forget', (req, res) => {
     //   res.clearCookie('remember');
     //   res.redirect('back');
     // });
-
     // this.server.post('/remember', (req, res) => {
     //   const minute = 60000;
     //   if (req.body.remember) res.cookie('remember', 1, { maxAge: minute });
     //   res.redirect('back');
     // });
-
     // this.server.use('/console', express.static('public/build'));
-
     // this.server.get('/', (req, res) => {
     //   res.send('Hello World!');
     // });
-
     // this.server.post('/', (req, res) => {
     //   res.send('Got a POST request');
     // });
-
     // this.server.put('/user', (req, res) => {
     //   res.send('Got a PUT request at /user');
     // });
-
     // this.server.delete('/user', (req, res) => {
     //   res.send('Got a DELETE request at /user');
     // });

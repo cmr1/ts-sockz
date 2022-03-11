@@ -1,11 +1,13 @@
 import 'colors';
 import fs from 'fs';
 import path from 'path';
+import Stripe from 'stripe';
 import { Socket } from 'net';
 import { Server, TLSSocket, TLSSocketOptions } from 'tls';
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, ServerResponse as WebServerResponse } from 'http';
 import { Server as WebServer } from 'https';
+import { Firestore } from '@google-cloud/firestore';
 import { SockzBase } from './SockzBase';
 import { SockzRelay } from './SockzRelay';
 import { SockzAgent } from './SockzAgent';
@@ -23,7 +25,8 @@ const {
   SERVER_HOST_NAME = 'localhost',
   SERVER_CERT_NAME = 'server.certificate.pem',
   SERVER_KEY_NAME = 'server.clientKey.pem',
-  SERVER_CA_NAME = 'server.certificate.pem'
+  SERVER_CA_NAME = 'server.certificate.pem',
+  STRIPE_SECRET_KEY
 } = process.env;
 
 export class SockzController extends SockzBase {
@@ -37,6 +40,9 @@ export class SockzController extends SockzBase {
   public clients: SockzClient[] = [];
   public webClients: SockzWebClient[] = [];
 
+  public stripe: Stripe;
+  public database: Firestore;
+
   constructor(
     public host = DEFAULT_HOST,
     public agentPort = DEFAULT_AGENT_PORT,
@@ -45,6 +51,19 @@ export class SockzController extends SockzBase {
     public prompt = DEFAULT_PROMPT
   ) {
     super();
+
+    if (STRIPE_SECRET_KEY) {
+      this.stripe = new Stripe(STRIPE_SECRET_KEY, {
+        apiVersion: '2020-08-27'
+      });
+    } else {
+      throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
+    }
+
+    this.database = new Firestore({
+      projectId: 'sockz-test',
+      keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json')
+    });
 
     this.app = new SockzWebApp(this);
   }
