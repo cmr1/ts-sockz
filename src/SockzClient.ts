@@ -12,6 +12,10 @@ export class SockzClient extends SockzRelay implements ISockzClient {
     super(ctl, socket, quiet ? undefined : ctl.prompt);
   }
 
+  get docPath(): string {
+    return `clients/${this.id}`;
+  }
+
   public init(): void {
     super.init(['ls', 'use']);
     this.on('reset', this.showPrompt.bind(this));

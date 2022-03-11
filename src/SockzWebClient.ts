@@ -52,6 +52,10 @@ export class SockzWebClient extends SockzRelay implements ISockzClient {
     });
   }
 
+  get docPath(): string {
+    return `webClients/${this.id}`;
+  }
+
   public init(): void {
     super.init();
 

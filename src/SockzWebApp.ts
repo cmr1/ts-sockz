@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
+import pem from 'pem';
+import crypto from 'crypto';
 // import * as got from 'got';
 import * as jose from 'jose';
 import Stripe from 'stripe';
@@ -343,6 +345,30 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }
     });
 
+    this.server.get('/client/:clientName?', requiresAuth(), async (req, res) => {
+      // TODO: Check actual perms
+
+      // Generate certs...
+      const tlsOpts = this.ctl.tlsOptions('server.certificate.pem', 'server.serviceKey.pem');
+      const password = crypto.randomBytes(60);
+      const clientName = req.params.clientName || 'Client';
+
+      console.log('Generating Client KeyPair ...', { clientName, password });
+      pem.createCertificate(
+        this.getClientOptions.bind(this)(clientName, tlsOpts.key as string, tlsOpts.cert as string, 'password'),
+        (clientErr, clientKeys) => {
+          if (clientErr) throw clientErr;
+
+          console.log('clientKeys genereated:', clientKeys);
+
+          res.render('client', {
+            clientName,
+            clientKeys
+          });
+        }
+      );
+    });
+
     this.server.get('/pricing', requiresAuth(), async (req, res) => {
       const plans = await this.stripe.plans.list();
 
@@ -424,6 +450,38 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
       res.oidc.logout();
     });
+  }
+
+  public getClientOptions(
+    commonName: string,
+    serviceKey: string,
+    serviceCertificate: string,
+    serviceKeyPassword: string
+  ): pem.CertificateCreationOptions {
+    return {
+      // csr: '',
+      // extFile: '/path/to/ext',
+      // config: '/path/to/config',
+      // csrConfigFile: '/path/to/csr/config',
+      // altNames: [],
+      // keyBitsize: 4096,
+      // hash: 'sha256',
+      // country: 'US',
+      // state: 'Colorado',
+      // locality: 'Denver',
+      // organization: 'CMR1',
+      // organizationUnit: 'Sockz',
+      // emailAddress: 'client@example.com',
+      commonName,
+      days: 1,
+      serial: 1234,
+      // serialFile: '/path/to/serial', // TODO: Submit PR for type fix?
+      selfSigned: false,
+      serviceKey,
+      serviceCertificate,
+      serviceKeyPassword
+      // clientKeyPassword: clientPassword
+    };
   }
 
   private static(dir?: string): void {

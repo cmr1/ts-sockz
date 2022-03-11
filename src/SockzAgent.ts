@@ -25,6 +25,10 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
     super(ctl, socket);
   }
 
+  get docPath(): string {
+    return `agents/${this.id}`;
+  }
+
   public init(): void {
     super.init(['registered']);
   }

@@ -12,10 +12,10 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
   public commands: string[] = ['reg', 'whoami', 'exit', 'ping', 'info', 'help'];
   public forwards: string[] = ['data', 'close', 'error'];
   public methods: string[] = ['data', 'close', 'error', 'authorized', 'unauthorized'];
-  public relay?: ISockzConnectable;
-  public disconnecting?: boolean;
   public convert: Convert;
   public client: ISockzConnectable;
+  public relay?: ISockzConnectable;
+  public disconnecting = false;
   public requireAuthorized = false;
   public clientAuthorized = false;
 
@@ -24,6 +24,28 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
 
     this.client = this;
     this.convert = new Convert();
+  }
+
+  get docPath(): string {
+    return `relays/${this.id}`;
+  }
+
+  get docData(): object {
+    return {
+      id: this.id,
+      signature: this.signature,
+      commands: this.commands,
+      forwards: this.forwards,
+      methods: this.methods,
+      disconnecting: this.disconnecting,
+      requireAuthorized: this.requireAuthorized,
+      clientAuthorized: this.clientAuthorized,
+      systemInfo: this.systemInfo
+    };
+  }
+
+  public async save() {
+    await this.ctl.database.doc(this.docPath).set(this.docData);
   }
 
   public get cert(): PeerCertificate | undefined {
@@ -114,6 +136,8 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
     } else {
       this.emit('unauthorized');
     }
+
+    this.save();
   }
 
   public debug(): void {
