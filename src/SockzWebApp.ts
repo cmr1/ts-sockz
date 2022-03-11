@@ -3,6 +3,7 @@ import path from 'path';
 import cors from 'cors';
 // import * as got from 'got';
 import * as jose from 'jose';
+import Stripe from 'stripe';
 import express, { Express } from 'express';
 // import session from 'express-session';
 import cookieParser from 'cookie-parser';
@@ -16,7 +17,7 @@ import { SockzController } from './SockzController';
 // import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-const { SESSION_SECRET } = process.env;
+const { SESSION_SECRET, STRIPE_API_VER = '2020-08-27', STRIPE_PUB_KEY, STRIPE_SECRET_KEY } = process.env;
 
 // interface ExampleApiResponse {
 //   message: string;
@@ -37,6 +38,7 @@ const { SESSION_SECRET } = process.env;
 // }
 
 export class SockzWebApp extends SockzBase implements ISockzWebApp {
+  public stripe: Stripe;
   public server: Express;
   public database: Firestore;
 
@@ -44,6 +46,15 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     super();
 
     this.server = express();
+
+    if (STRIPE_SECRET_KEY) {
+      this.stripe = new Stripe(STRIPE_SECRET_KEY, {
+        apiVersion: '2020-08-27',
+      });
+    } else {
+      throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
+    }
+
     this.database = new Firestore({
       projectId: 'sockz-test',
       keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json')
@@ -280,6 +291,21 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // this.server.use(express.json());
 
     this.server.get('/health', this.health.bind(this));
+
+    this.server.get('/customer', (req, res) => {
+      const createCustomer = async () => {
+        const params: Stripe.CustomerCreateParams = {
+          description: 'test customer',
+        };
+
+        const customer: Stripe.Customer = await this.stripe.customers.create(params);
+
+        console.log('Created stripe customer:', customer);
+
+        res.send('YAY');
+      };
+      createCustomer();
+    })
 
     this.server.get('/test', (req, res) => {
       if (req.cookies.remember) {
