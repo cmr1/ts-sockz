@@ -4,7 +4,7 @@ import cors from 'cors';
 import pem from 'pem';
 import * as jose from 'jose';
 import Stripe from 'stripe';
-import crypto from 'crypto'
+import crypto from 'crypto';
 import express, { Express } from 'express';
 import session from 'express-session';
 import jwt from 'express-jwt';
@@ -388,7 +388,8 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server.post('/api/client/register', this.apiSess(), this.restrict(['admin:clients']), (req, res) => {
       try {
         // this.log.warn('Api client auth with', req.body);
-        let { clientName, clientPassword } = req.body;
+        const { clientName } = req.body;
+        let { clientPassword } = req.body;
 
         if (!clientName) {
           res.status(400).json({ message: 'Missing required: clientName' });
@@ -396,7 +397,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         }
 
         if (!clientPassword) {
-          clientPassword = crypto.randomBytes(32).toString('hex')
+          clientPassword = crypto.randomBytes(32).toString('hex');
         }
 
         // Generate certs...
