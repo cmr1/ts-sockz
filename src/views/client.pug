@@ -1,0 +1,15 @@
+extends ../components/layout
+
+block content
+  h2 Created: #{clientName}
+
+  p Signing Request (CSR)
+  textarea
+    | #{clientKeys.csr}
+  p Client Key
+  textarea
+    | #{clientKeys.clientKey}
+  p Certificate
+  textarea
+    | #{clientKeys.certificate}
+

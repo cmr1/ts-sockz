@@ -1,0 +1,9 @@
+extends ../components/layout
+
+include ../components/hero
+include ../components/home_content
+
+block content
+  +hero("/img/logo.png")
+  hr
+  +home-content

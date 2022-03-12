@@ -1,0 +1,8 @@
+include ./authentication-button
+include ./console-button
+
+mixin auth-nav(isAuthenticated)
+  div(class="navbar-nav ml-auto")
+    +console-button(isAuthenticated)
+  div(class="navbar-nav ml-auto")
+    +authentication-button(isAuthenticated)

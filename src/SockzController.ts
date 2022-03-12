@@ -1,11 +1,13 @@
 import 'colors';
 import fs from 'fs';
 import path from 'path';
+import Stripe from 'stripe';
 import { Socket } from 'net';
 import { Server, TLSSocket, TLSSocketOptions } from 'tls';
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, ServerResponse as WebServerResponse } from 'http';
 import { Server as WebServer } from 'https';
+import { Firestore } from '@google-cloud/firestore';
 import { SockzBase } from './SockzBase';
 import { SockzRelay } from './SockzRelay';
 import { SockzAgent } from './SockzAgent';
@@ -14,7 +16,7 @@ import { SockzWebApp } from './SockzWebApp';
 import { SockzWebClient } from './SockzWebClient';
 
 const DEFAULT_HOST = '127.0.0.1';
-const DEFAULT_WEB_PORT = 8080;
+const DEFAULT_WEB_PORT = 4040;
 const DEFAULT_AGENT_PORT = 1111;
 const DEFAULT_CLIENT_PORT = 2222;
 const DEFAULT_PROMPT = `sockz> `;
@@ -23,7 +25,8 @@ const {
   SERVER_HOST_NAME = 'localhost',
   SERVER_CERT_NAME = 'server.certificate.pem',
   SERVER_KEY_NAME = 'server.clientKey.pem',
-  SERVER_CA_NAME = 'server.certificate.pem'
+  SERVER_CA_NAME = 'server.certificate.pem',
+  STRIPE_SECRET_KEY
 } = process.env;
 
 export class SockzController extends SockzBase {
@@ -37,6 +40,9 @@ export class SockzController extends SockzBase {
   public clients: SockzClient[] = [];
   public webClients: SockzWebClient[] = [];
 
+  public stripe: Stripe;
+  public database: Firestore;
+
   constructor(
     public host = DEFAULT_HOST,
     public agentPort = DEFAULT_AGENT_PORT,
@@ -46,10 +52,46 @@ export class SockzController extends SockzBase {
   ) {
     super();
 
+    if (STRIPE_SECRET_KEY) {
+      this.stripe = new Stripe(STRIPE_SECRET_KEY, {
+        apiVersion: '2020-08-27'
+      });
+    } else {
+      throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
+    }
+
+    this.database = new Firestore({
+      projectId: 'sockz-test',
+      keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json')
+    });
+
     this.app = new SockzWebApp(this);
   }
 
-  public tlsOptions(cert: string, key: string, caList?: string): TLSSocketOptions {
+  get docPath(): string {
+    return `controllers/${this.id}`;
+  }
+
+  get docData(): object {
+    return {
+      id: this.id,
+      host: this.host,
+      prompt: this.prompt,
+      agents: this.agents.map((ag) => ag.id),
+      clients: this.clients.map((cl) => cl.id),
+      webClients: this.webClients.map((wc) => wc.id),
+      webPort: this.webPort,
+      agentPort: this.agentPort,
+      clientPort: this.clientPort,
+      systemInfo: this.systemInfo
+    };
+  }
+
+  public async save() {
+    await this.database.doc(this.docPath).set(this.docData);
+  }
+
+  public tlsOptions(cert: string, key: string, caList?: string, rejectUnauthorized = false): TLSSocketOptions {
     const certsDir = path.join(__dirname, '..', 'certs');
 
     return {
@@ -57,7 +99,7 @@ export class SockzController extends SockzBase {
       cert: fs.readFileSync(path.join(certsDir, cert)),
       ca: caList ? caList.split(',').map((ca) => fs.readFileSync(path.join(certsDir, ca.trim()))) : [],
       requestCert: true,
-      rejectUnauthorized: false
+      rejectUnauthorized
     };
   }
 
@@ -90,7 +132,9 @@ export class SockzController extends SockzBase {
     );
     this.wss = new WebSocketServer({ server: this.web });
     this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
-    this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
+    this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME, true));
+
+    this.save();
   }
 
   public listen(): void {
@@ -217,7 +261,7 @@ export class SockzController extends SockzBase {
     const client = new SockzWebClient(this, ws);
     // client.init();
     this.webClients.push(client);
-
+    this.save();
     this.debug();
     // ws.on('message', function message(data) {
     //   console.log('received: %s', data);
@@ -230,6 +274,7 @@ export class SockzController extends SockzBase {
     const agent = new SockzAgent(this, socket);
     agent.init();
     this.agents.push(agent);
+    this.save();
     this.debug();
   }
 
@@ -237,6 +282,7 @@ export class SockzController extends SockzBase {
     const client = new SockzClient(this, socket);
     client.init();
     this.clients.push(client);
+    this.save();
     this.debug();
   }
 
@@ -253,6 +299,7 @@ export class SockzController extends SockzBase {
       this.log.warn(`Invalid target type, cannot disconnect:`, target);
     }
 
+    this.save();
     this.debug();
   }
 

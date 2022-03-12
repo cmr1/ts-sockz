@@ -1,0 +1,28 @@
+mixin home-content()
+  div(class="next-steps")
+    h2(class="my-5 text-center") What can I do next?
+
+    div(class="row")
+      div(class="col-md-5 mb-4")
+        h6(class="mb-3")
+          a(href="/profile")
+            i.fas.fa-link
+            | Visit your profile
+        p View your profile information
+
+      div(class="col-md")
+
+      div(class="col-md-5 mb-4")
+        h6(class="mb-3")
+          a(href="/pricing")
+            i.fas.fa-link
+            | View pricing options
+        p Lots of shit to think about here...
+
+    div(class="row")
+      div(class="col-md-5 mb-4")
+        h6(class="mb-3")
+          a(href=consoleUrl + '?token=' + access_token)
+            i.fas.fa-link
+            | Visit the web console
+        p Visit the authorized minimal web client

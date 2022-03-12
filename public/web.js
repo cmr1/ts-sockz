@@ -29,7 +29,7 @@ $(function(){
   function connect() {
     // TODO: Template data handling with express static?
     // socket = new WebSocket("wss://{{host}}:{{webPort}}");
-    socket = new WebSocket("wss://localhost:8080");
+    socket = new WebSocket("wss://localhost:4040");
 
     socket.onopen = function(e) {
       console.debug("[open] Connection established");

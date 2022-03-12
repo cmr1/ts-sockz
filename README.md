@@ -32,7 +32,7 @@ telnet localhost 2222
 
 Visit the web client console:
 
-- [localhost:8080](http://localhost:8080)
+- [localhost:4040](http://localhost:4040)
 
 ## Options
 
@@ -56,7 +56,7 @@ Allowed values:
 - host: `127.0.0.1`
 - agentPort: `1111`
 - clientPort: `2222`
-- webPort: `8080`
+- webPort: `4040`
 - prompt: `"sockz> "`
 
 
@@ -84,7 +84,7 @@ To customize the session prompt:
 
 ```bash
 # Start a server and use poop for client prompt
-npx sockz server 0.0.0.0 1111 2222 8080 "💩 "
+npx sockz server 0.0.0.0 1111 2222 4040 "💩 "
 
 # Connect an authorized client
 ncat --ssl --ssl-cert certs/client_cert.pem --ssl-key certs/client_key.pem localhost 2222
@@ -149,6 +149,6 @@ AGENT_CA_LIST = ''
 
 ## WebClient
 
-Visit [https://localhost:8080/](https://localhost:8080/) in your browser
+Visit [https://localhost:4040/](https://localhost:4040/) in your browser
 
 *Self-signed cert, will have a warning*

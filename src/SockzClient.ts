@@ -12,6 +12,10 @@ export class SockzClient extends SockzRelay implements ISockzClient {
     super(ctl, socket, quiet ? undefined : ctl.prompt);
   }
 
+  get docPath(): string {
+    return `clients/${this.id}`;
+  }
+
   public init(): void {
     super.init(['ls', 'use']);
     this.on('reset', this.showPrompt.bind(this));
@@ -61,7 +65,7 @@ export class SockzClient extends SockzRelay implements ISockzClient {
 
           const cert = this.socket.getCertificate() as PeerCertificate;
 
-          this.signature = cert.subject.CN;
+          this.signature = cert.subject?.CN;
 
           this.init();
           // this.reg(this.signature);

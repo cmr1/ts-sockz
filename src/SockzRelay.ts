@@ -8,22 +8,45 @@ import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 
 export class SockzRelay extends SockzBase implements ISockzConnectable {
-  public signature?: string;
+  public signature: string;
   public commands: string[] = ['reg', 'whoami', 'exit', 'ping', 'info', 'help'];
   public forwards: string[] = ['data', 'close', 'error'];
   public methods: string[] = ['data', 'close', 'error', 'authorized', 'unauthorized'];
-  public relay?: ISockzConnectable;
-  public disconnecting?: boolean;
   public convert: Convert;
   public client: ISockzConnectable;
+  public relay?: ISockzConnectable;
+  public disconnecting = false;
   public requireAuthorized = false;
   public clientAuthorized = false;
 
   constructor(public ctl: SockzController, public socket: TLSSocket | WebSocket, public prompt?: string) {
     super();
 
+    this.signature = this.id;
     this.client = this;
     this.convert = new Convert();
+  }
+
+  get docPath(): string {
+    return `relays/${this.id}`;
+  }
+
+  get docData(): object {
+    return {
+      id: this.id,
+      signature: this.signature,
+      commands: this.commands,
+      forwards: this.forwards,
+      methods: this.methods,
+      disconnecting: this.disconnecting,
+      requireAuthorized: this.requireAuthorized,
+      clientAuthorized: this.clientAuthorized,
+      systemInfo: this.systemInfo
+    };
+  }
+
+  public async save() {
+    await this.ctl.database.doc(this.docPath).set(this.docData);
   }
 
   public get cert(): PeerCertificate | undefined {
@@ -41,7 +64,7 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
   }
 
   public authorized(): void {
-    const msg = `Authorized: ${this.cert?.subject.CN}`;
+    const msg = `Authorized: ${this.cert?.subject?.CN}`;
 
     this.log.success(msg);
 
@@ -54,13 +77,16 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
 
   public unauthorized(): void {
     const authError = (this.socket as TLSSocket).authorizationError;
-    const errMsg = `Unauthorized: ${this.cert?.subject.CN} (${authError})`;
 
-    this.log.error(errMsg);
-    this.debug();
+    if (this.cert?.subject?.CN && authError) {
+      const errMsg = `Unauthorized: ${this.cert?.subject?.CN} (${authError})`;
 
-    if (this.prompt) {
-      this.write(`${errMsg}\n`.red);
+      this.log.error(errMsg);
+      this.debug();
+
+      if (this.prompt) {
+        this.write(`${errMsg}\n`.red);
+      }
     }
 
     // setTimeout(() => {
@@ -114,6 +140,8 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
     } else {
       this.emit('unauthorized');
     }
+
+    this.save();
   }
 
   public debug(): void {
