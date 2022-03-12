@@ -9,6 +9,7 @@ import Stripe from 'stripe';
 import express, { Express } from 'express';
 import session from 'express-session';
 import jwt from 'express-jwt';
+import jwksRsa from 'jwks-rsa';
 import jwtAuthz from 'express-jwt-authz';
 // import cookieParser from 'cookie-parser';
 // import cookieSession from 'cookie-session';
@@ -23,8 +24,10 @@ import { Firestore } from '@google-cloud/firestore';
 
 const {
   SESSION_SECRET = 'super secret session',
-  SERVER_KEY_NAME = 'server_key.pem',
-  SERVER_CERT_NAME = 'server_cert.pem'
+  SERVER_KEY_NAME = 'server.clientKey.pem',
+  SERVER_CERT_NAME = 'server.certificate.pem',
+  SESSION_KEY_NAME = 'session.clientKey.pem',
+  SESSION_CERT_NAME = 'session.certificate.pem'
 } = process.env;
 
 interface CreateUserParams {
@@ -198,9 +201,16 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     this.init();
     this.views();
+    // this.sess();
     this.auth();
     this.routes();
     this.static();
+    // this.server.use(this.handleErrors.bind(this));
+
+    this.server.use((err, req, res, next) => {
+      console.error(err)
+      res.status(500).json({ message: 'oops' });
+    });
   }
 
   public get publicDir(): string {
@@ -238,7 +248,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // this.server.use(cookieParser(SESSION_SECRET));
 
     // do something with the session
-    this.server.use(this.count.bind(this));
+    // this.server.use(this.count.bind(this));
 
     // parses x-www-form-urlencoded
     // this.server.use(express.urlencoded({ extended: false }));
@@ -247,6 +257,33 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server.use(express.json());
 
     this.server.get('/health', this.health.bind(this));
+  }
+
+  public sess() {
+    const secret = jwksRsa.expressJwtSecret({
+      cache: true,
+      rateLimit: true,
+      jwksRequestsPerMinute: 5,
+      jwksUri: 'https://sockz.us.auth0.com/.well-known/jwks.json',
+    })
+
+    const jwtCheck = jwt({
+      secret: secret,
+      audience: process.env.AUTH0_AUDIENCE,
+      issuer: 'https://sockz.us.auth0.com/',
+      algorithms: ['RS256'],
+    })
+
+    // this.server.use(jwtCheck);
+
+    return jwtCheck;
+  }
+
+  public handleErrors(err, req, res, next) {
+    this.server.use((err, req, res, next) => {
+      this.log.error(err)
+      res.status(500).send('Something broke!')
+    })
   }
 
   public corsOptions(extra?: cors.CorsOptions): cors.CorsOptions {
@@ -509,8 +546,10 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     //     function(req, res) { ... });
     this.server.get(
       '/api/example',
-      jwt({ secret: this.ctl.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME).key, algorithms: ['RS256'] }),
-      jwtAuthz(['write:clients'], { failWithError: true, customScopeKey: 'permissions' }),
+      this.sess(),
+      // jwt({ secret: SESSION_SECRET }),
+      // jwt({ secret: this.ctl.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME).key, algorithms: ['RS256'] }),
+      jwtAuthz(['admin:clients'], { failWithError: true, customScopeKey: 'permissions' }),
       (req, res) => {
         res.json({ hello: 'world' });
       }

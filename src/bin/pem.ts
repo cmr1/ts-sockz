@@ -33,16 +33,26 @@ const certDir = path.join(__dirname, '..', '..', 'certs');
 // `;
 
 const serverPassword = 'password';
+const sessionPassword = 'password';
 const clientPassword = 'super secret';
 const agentPassword = 'im an agent';
 
 const serverOptions: pem.CertificateCreationOptions = {
   // csr: '',
   // altNames: [],
-  days: 1,
+  days: 365,
   hash: 'sha256',
   selfSigned: true,
   clientKeyPassword: serverPassword
+};
+
+const sessionOptions: pem.CertificateCreationOptions = {
+  // csr: '',
+  // altNames: [],
+  days: 365,
+  hash: 'sha256',
+  selfSigned: true,
+  clientKeyPassword: sessionPassword
 };
 
 const getClientOptions = (
@@ -127,6 +137,13 @@ const writeKeysSync = (name: string, keys: pem.CertificateCreationResult) => {
     console.log('Saved file:', filepath);
   }
 };
+
+// Generate session keypair
+pem.createCertificate(sessionOptions, (sessionErr, sessionData) => {
+  if (sessionErr) throw sessionErr;
+
+  writeKeysSync('session', sessionData);
+});
 
 const serverCertFile = path.join(certDir, 'server.certificate.pem');
 const serviceKeyFile = path.join(certDir, 'server.serviceKey.pem');
