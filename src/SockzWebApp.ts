@@ -421,7 +421,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }
     });
 
-    this.server.get('/pricing', requiresAuth(), async (req, res) => {
+    this.server.get('/pricing', async (req, res) => {
       const plans = await this.stripe.plans.list();
 
       this.log.debug('Loaded plans', plans);
