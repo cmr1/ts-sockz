@@ -77,13 +77,16 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
 
   public unauthorized(): void {
     const authError = (this.socket as TLSSocket).authorizationError;
-    const errMsg = `Unauthorized: ${this.cert?.subject?.CN} (${authError})`;
 
-    this.log.error(errMsg);
-    this.debug();
+    if (this.cert?.subject?.CN && authError) {
+      const errMsg = `Unauthorized: ${this.cert?.subject?.CN} (${authError})`;
 
-    if (this.prompt) {
-      this.write(`${errMsg}\n`.red);
+      this.log.error(errMsg);
+      this.debug();
+
+      if (this.prompt) {
+        this.write(`${errMsg}\n`.red);
+      }
     }
 
     // setTimeout(() => {

@@ -4,6 +4,7 @@ import cors from 'cors';
 import pem from 'pem';
 import * as jose from 'jose';
 import Stripe from 'stripe';
+import crypto from 'crypto'
 import express, { Express } from 'express';
 import session from 'express-session';
 import jwt from 'express-jwt';
@@ -384,27 +385,31 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }
     });
 
-    this.server.post('/api/client/register', this.apiSess(), this.restrict(['read:clients']), (req, res) => {
+    this.server.post('/api/client/register', this.apiSess(), this.restrict(['admin:clients']), (req, res) => {
       try {
         // this.log.warn('Api client auth with', req.body);
-        const { clientName, clientPassword } = req.body;
+        let { clientName, clientPassword } = req.body;
 
-        if (!clientName || !clientPassword) {
-          res.status(400).json({ message: 'Missing/invalid register params' });
+        if (!clientName) {
+          res.status(400).json({ message: 'Missing required: clientName' });
           return;
+        }
+
+        if (!clientPassword) {
+          clientPassword = crypto.randomBytes(32).toString('hex')
         }
 
         // Generate certs...
         const tlsOpts = this.ctl.tlsOptions('server.certificate.pem', 'server.serviceKey.pem');
 
-        this.log.info('Generating Client KeyPair ...', { clientName, clientPassword });
+        this.log.debug('Generating Client KeyPair ...', { clientName, clientPassword });
 
         pem.createCertificate(
           this.getClientOptions.bind(this)(clientName, tlsOpts.key as string, tlsOpts.cert as string, clientPassword),
           (err, keys) => {
             if (err) throw err;
 
-            this.log.info('keys genereated:', keys);
+            this.log.debug('Client Keys Genereated:', keys);
 
             res.json({
               auth: [keys.clientKey, keys.certificate].map((data) => Buffer.from(data).toString('base64')).join(':')
@@ -419,7 +424,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server.get('/pricing', requiresAuth(), async (req, res) => {
       const plans = await this.stripe.plans.list();
 
-      this.log.warn('Loaded plans', plans);
+      this.log.debug('Loaded plans', plans);
 
       res.render('pricing', {
         plans: plans.data
