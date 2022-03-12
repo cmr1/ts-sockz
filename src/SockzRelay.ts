@@ -8,7 +8,7 @@ import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 
 export class SockzRelay extends SockzBase implements ISockzConnectable {
-  public signature?: string;
+  public signature: string;
   public commands: string[] = ['reg', 'whoami', 'exit', 'ping', 'info', 'help'];
   public forwards: string[] = ['data', 'close', 'error'];
   public methods: string[] = ['data', 'close', 'error', 'authorized', 'unauthorized'];
@@ -22,6 +22,7 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
   constructor(public ctl: SockzController, public socket: TLSSocket | WebSocket, public prompt?: string) {
     super();
 
+    this.signature = this.id;
     this.client = this;
     this.convert = new Convert();
   }

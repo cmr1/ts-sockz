@@ -8,9 +8,11 @@ import * as jose from 'jose';
 import Stripe from 'stripe';
 import express, { Express } from 'express';
 import session from 'express-session';
+import jwt from 'express-jwt';
+import jwtAuthz from 'express-jwt-authz';
 // import cookieParser from 'cookie-parser';
 // import cookieSession from 'cookie-session';
-import { auth, requiresAuth } from 'express-openid-connect';
+import { auth, requiresAuth, claimIncludes } from 'express-openid-connect';
 import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
@@ -19,7 +21,11 @@ import { SockzController } from './SockzController';
 // import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-const { SESSION_SECRET = 'super secret session' } = process.env;
+const {
+  SESSION_SECRET = 'super secret session',
+  SERVER_KEY_NAME = 'server_key.pem',
+  SERVER_CERT_NAME = 'server_cert.pem'
+} = process.env;
 
 interface CreateUserParams {
   sub?: string;
@@ -238,7 +244,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // this.server.use(express.urlencoded({ extended: false }));
 
     // parses json data
-    // this.server.use(express.json());
+    this.server.use(express.json());
 
     this.server.get('/health', this.health.bind(this));
   }
@@ -423,7 +429,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       //   message = 'Unable to retrieve message.';
       // }
 
-      res.render('external-api', { message });
+      res.render('external-api', { message, token_type, access_token });
     });
 
     this.server.get('/sign-up/:page/:section?', (req, res) => {
@@ -496,6 +502,20 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private routes(): void {
+    // var options = {};
+    //   app.get('/users',
+    //     jwt({ secret: 'shared_secret' }),
+    //     jwtAuthz([ 'read:users' ], options),
+    //     function(req, res) { ... });
+    this.server.get(
+      '/api/example',
+      jwt({ secret: this.ctl.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME).key, algorithms: ['RS256'] }),
+      jwtAuthz(['write:clients'], { failWithError: true, customScopeKey: 'permissions' }),
+      (req, res) => {
+        res.json({ hello: 'world' });
+      }
+    );
+
     // this.server.get('/test', (req, res) => {
     //   if (req.cookies.remember) {
     //     res.send('Remembered :). Click to <a href="/forget">forget</a>!.');

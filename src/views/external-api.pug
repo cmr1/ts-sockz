@@ -28,3 +28,9 @@ block content
           div(class="row")
             code(class="col-12 text-light bg-dark p-4")
               | #{JSON.stringify(message, null, 2)}
+
+    if token_type
+      p Access Token Type: #{token_type}
+    if access_token
+      p Access Token:
+      pre #{access_token}
