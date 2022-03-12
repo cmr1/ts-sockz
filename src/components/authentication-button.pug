@@ -1,10 +1,8 @@
 include ./login-button
 include ./logout-button
-include ./console-button
 
 mixin authentication-button(isAuthenticated)
   if isAuthenticated
-    +console-button
     +logout-button
   else
     +login-button
