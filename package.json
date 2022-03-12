@@ -11,8 +11,9 @@
     "sockz-server": "bin/sockz-server"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:pug",
     "pem": "ts-node src/bin/pem.ts",
+    "build:pug": "mkdir -p dist && for d in views components; do cp -r src/$d dist/$d; done",
     "server": "nodemon src/bin/server.ts",
     "agent": "nodemon -d 2 src/bin/agent.ts",
     "ci:audit": "npm audit",
