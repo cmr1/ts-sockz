@@ -1,17 +1,17 @@
 mixin main-nav(activeRoute)
-  div(class="navbar-nav mr-auto")
+  div(class="nav navbar-nav mr-auto")
     a(
       href="/"
       class="nav-link",
-      class=`${activeRoute === "/" && "router-link-exact-active"}`
+      class=`${activeRoute === "" && "active router-link-exact-active"}`
     ) Home
     a(
       href="/profile"
       class="nav-link",
-      class=`${activeRoute === "/profile" && "router-link-exact-active"}`
+      class=`${activeRoute === "profile" && "active router-link-exact-active"}`
     ) Profile
     a(
       href="/pricing"
       class="nav-link",
-      class=`${activeRoute === "/pricing" && "router-link-exact-active"}`
+      class=`${activeRoute === "pricing" && "active router-link-exact-active"}`
     ) Pricing

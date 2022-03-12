@@ -2,8 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import cors from 'cors';
 import pem from 'pem';
-import crypto from 'crypto';
-// import * as got from 'got';
 import * as jose from 'jose';
 import Stripe from 'stripe';
 import express, { Express } from 'express';
@@ -11,24 +9,13 @@ import session from 'express-session';
 import jwt from 'express-jwt';
 import jwksRsa from 'jwks-rsa';
 import jwtAuthz from 'express-jwt-authz';
-// import cookieParser from 'cookie-parser';
-// import cookieSession from 'cookie-session';
 import { auth, requiresAuth } from 'express-openid-connect';
 import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
-
-// Import the functions you need from the SDKs you need
-// import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-const {
-  SESSION_SECRET = 'super secret session',
-  CONSOLE_WEB_URL = 'http://localhost:3000',
-  SERVER_KEY_NAME = 'server.clientKey.pem',
-  SERVER_CA_NAME = 'server.serviceKey.pem',
-  SERVER_CERT_NAME = 'server.certificate.pem'
-} = process.env;
+const { SESSION_SECRET = 'super secret session', CONSOLE_WEB_URL = 'http://localhost:3000' } = process.env;
 
 interface CreateUserParams {
   sub?: string;
@@ -169,18 +156,6 @@ declare module 'jose' {
   }
 }
 
-// interface ExampleApiResponse {
-//   message: string;
-// }
-
-// Better logger?
-// From: https://github.com/expressjs/express/blob/master/examples/cookies/index.js
-//-----------------------------------
-// var logger = require('morgan');
-
-//-----------------------------------
-// Custom session interface typing
-//-----------------------------------
 declare module 'express-session' {
   export interface SessionData {
     user: CreateUserParams;
@@ -206,11 +181,9 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     this.init();
     this.views();
-    // this.apiSess();
     this.auth();
     this.routes();
     this.static();
-    // this.server.use(this.handleErrors.bind(this));
 
     this.server.use((err, req, res, next) => {
       this.log.warn(req.method, req.url, err);
@@ -254,9 +227,6 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       })
     );
 
-    // this.server.use(cookieSession({ secret: SESSION_SECRET }));
-    // this.server.use(cookieParser(SESSION_SECRET));
-
     // do something with the session
     // this.server.use(this.count.bind(this));
 
@@ -275,13 +245,13 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       cache: true,
       rateLimit: true,
       jwksRequestsPerMinute: 5,
-      jwksUri: 'https://sockz.us.auth0.com/.well-known/jwks.json'
+      jwksUri: `${process.env.AUTH0_ISSUER_BASE_URL}.well-known/jwks.json`
     });
 
     const jwtCheck = jwt({
       secret: secret,
       audience: process.env.AUTH0_AUDIENCE,
-      issuer: 'https://sockz.us.auth0.com/',
+      issuer: process.env.AUTH0_ISSUER_BASE_URL,
       algorithms: ['RS256']
     });
 

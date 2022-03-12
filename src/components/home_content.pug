@@ -5,33 +5,24 @@ mixin home-content()
     div(class="row")
       div(class="col-md-5 mb-4")
         h6(class="mb-3")
-          a(href="https://auth0.com/docs/connections")
+          a(href="/profile")
             i.fas.fa-link
-            | Configure other identity providers
-        p Auth0 supports social providers as Facebook, Twitter, Instagram and 100+, Enterprise providers as Microsoft Office 365, Google Apps, Azure, and more. You can also use any OAuth2 Authorization Server.
+            | Visit your profile
+        p View your profile information
 
       div(class="col-md")
 
       div(class="col-md-5 mb-4")
         h6(class="mb-3")
-          a(href="https://auth0.com/docs/multifactor-authentication")
+          a(href="/pricing")
             i.fas.fa-link
-            | Enable Multi-Factor Authentication
-        p Add an extra layer of security by enabling Multi-factor Authentication, requiring your users to provide more than one piece of identifying information. Push notifications, authenticator apps, SMS, and DUO Security are supported.
+            | View pricing options
+        p Lots of shit to think about here...
 
     div(class="row")
       div(class="col-md-5 mb-4")
         h6(class="mb-3")
-          a(href="https://auth0.com/docs/anomaly-detection")
+          a(href=consoleUrl + '?token=' + access_token)
             i.fas.fa-link
-            | Anomaly Detection
-        p Auth0 can detect anomalies and stop malicious attempts to access your application. Anomaly detection can alert you and your users of suspicious activity, as well as block further login attempts.
-
-      div(class="col-md")
-
-      div(class="col-md-5 mb-4")
-        h6(class="mb-3")
-          a(href="https://auth0.com/docs/rules")
-            i.fas.fa-link
-            | Learn About Rules
-        p Rules are JavaScript functions that execute when a user authenticates to your application. They run once the authentication process is complete, and you can use them to customize and extend Auth0's capabilities.
+            | Visit the web console
+        p Visit the authorized minimal web client

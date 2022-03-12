@@ -17,8 +17,6 @@
       "@types/pem",
       "@types/cors",
       "@types/express",
-      "@types/cookie-parser",
-      "@types/cookie-session",
       "@types/express-session"
     ],
     "outDir": "dist",

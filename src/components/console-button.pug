@@ -1,5 +1,6 @@
-mixin console-button()
-  button(
-    class="btn btn-info btn-block",
-    onclick=`window.location='${consoleUrl}?token=${access_token}'`
-  ) Console
+mixin console-button(isAuthenticated)
+  if isAuthenticated
+    button(
+      class="btn btn-default btn-console btn-block",
+      onclick=`window.location='${consoleUrl}?token=${access_token}'`
+    ) sockz&gt;&nbsp;
