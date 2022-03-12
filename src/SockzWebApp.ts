@@ -199,6 +199,11 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.stripe = this.ctl.stripe;
     this.database = this.ctl.database;
 
+    this.server.use((req, res, next) => {
+      this.log.info(req.method, req.url);
+      next();
+    });
+
     this.init();
     this.views();
     // this.sess();
@@ -208,8 +213,8 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // this.server.use(this.handleErrors.bind(this));
 
     this.server.use((err, req, res, next) => {
-      console.error(err)
-      res.status(500).json({ message: 'oops' });
+      this.log.warn(req.method, req.url, err);
+      res.status(err.status || 500).json(err);
     });
   }
 
@@ -256,7 +261,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // parses json data
     this.server.use(express.json());
 
-    this.server.get('/health', this.health.bind(this));
+    this.server.get('/health', this.sess(), this.restrict(['read:clients']), this.health.bind(this));
   }
 
   public sess() {
@@ -300,7 +305,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private health(req, res) {
-    res.send('true');
+    res.json({ message: 'Authorized' });
   }
 
   private auth(): void {
@@ -538,22 +543,19 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server.set('view engine', 'pug');
   }
 
+  private restrict(scope: string[]) {
+    return jwtAuthz(scope, { failWithError: true, customScopeKey: 'permissions' });
+  }
+
   private routes(): void {
-    // var options = {};
-    //   app.get('/users',
-    //     jwt({ secret: 'shared_secret' }),
-    //     jwtAuthz([ 'read:users' ], options),
-    //     function(req, res) { ... });
-    this.server.get(
-      '/api/example',
-      this.sess(),
-      // jwt({ secret: SESSION_SECRET }),
-      // jwt({ secret: this.ctl.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME).key, algorithms: ['RS256'] }),
-      jwtAuthz(['admin:clients'], { failWithError: true, customScopeKey: 'permissions' }),
-      (req, res) => {
-        res.json({ hello: 'world' });
-      }
-    );
+    // this.server.get(
+    //   '/api/example',
+    //   this.sess(),
+    //   this.restrict(['admin:clients']),
+    //   (req, res) => {
+    //     res.json({ hello: 'world' });
+    //   }
+    // );
 
     // this.server.get('/test', (req, res) => {
     //   if (req.cookies.remember) {
