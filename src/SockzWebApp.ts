@@ -13,7 +13,7 @@ import jwksRsa from 'jwks-rsa';
 import jwtAuthz from 'express-jwt-authz';
 // import cookieParser from 'cookie-parser';
 // import cookieSession from 'cookie-session';
-import { auth, requiresAuth, claimIncludes } from 'express-openid-connect';
+import { auth, requiresAuth } from 'express-openid-connect';
 import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
@@ -22,13 +22,7 @@ import { SockzController } from './SockzController';
 // import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-const {
-  SESSION_SECRET = 'super secret session',
-  SERVER_KEY_NAME = 'server.clientKey.pem',
-  SERVER_CERT_NAME = 'server.certificate.pem',
-  SESSION_KEY_NAME = 'session.clientKey.pem',
-  SESSION_CERT_NAME = 'session.certificate.pem'
-} = process.env;
+const { SESSION_SECRET = 'super secret session' } = process.env;
 
 interface CreateUserParams {
   sub?: string;
@@ -214,7 +208,12 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     this.server.use((err, req, res, next) => {
       this.log.warn(req.method, req.url, err);
-      res.status(err.status || 500).json(err);
+
+      if (err.status < 400) {
+        next();
+      } else {
+        res.status(err.status || 500).json(err);
+      }
     });
   }
 
@@ -269,26 +268,19 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       cache: true,
       rateLimit: true,
       jwksRequestsPerMinute: 5,
-      jwksUri: 'https://sockz.us.auth0.com/.well-known/jwks.json',
-    })
+      jwksUri: 'https://sockz.us.auth0.com/.well-known/jwks.json'
+    });
 
     const jwtCheck = jwt({
       secret: secret,
       audience: process.env.AUTH0_AUDIENCE,
       issuer: 'https://sockz.us.auth0.com/',
-      algorithms: ['RS256'],
-    })
+      algorithms: ['RS256']
+    });
 
     // this.server.use(jwtCheck);
 
     return jwtCheck;
-  }
-
-  public handleErrors(err, req, res, next) {
-    this.server.use((err, req, res, next) => {
-      this.log.error(err)
-      res.status(500).send('Something broke!')
-    })
   }
 
   public corsOptions(extra?: cors.CorsOptions): cors.CorsOptions {
@@ -556,7 +548,6 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     //     res.json({ hello: 'world' });
     //   }
     // );
-
     // this.server.get('/test', (req, res) => {
     //   if (req.cookies.remember) {
     //     res.send('Remembered :). Click to <a href="/forget">forget</a>!.');
