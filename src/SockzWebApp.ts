@@ -16,7 +16,13 @@ import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 import { Firestore } from '@google-cloud/firestore';
 
-const { SESSION_SECRET = 'super secret session', CONSOLE_WEB_URL = 'http://localhost:3000' } = process.env;
+const {
+  SESSION_SECRET = 'super secret session',
+  CONSOLE_WEB_URL = 'http://localhost:3000',
+  SERVER_CERT_NAME = 'server.certificate.pem',
+  SERVER_KEY_NAME = 'server.clientKey.pem',
+  SERVER_CA_NAME = 'server.certificate.pem'
+} = process.env;
 
 interface CreateUserParams {
   sub?: string;
@@ -401,7 +407,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         }
 
         // Generate certs...
-        const tlsOpts = this.ctl.tlsOptions('server.certificate.pem', 'server.serviceKey.pem');
+        const tlsOpts = this.ctl.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME);
 
         this.log.debug('Generating Client KeyPair ...', { clientName, clientPassword });
 

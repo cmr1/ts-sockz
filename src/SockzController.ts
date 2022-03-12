@@ -60,10 +60,14 @@ export class SockzController extends SockzBase {
       throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
     }
 
-    this.database = new Firestore({
-      projectId: 'sockz-test',
-      keyFilename: path.join(__dirname, '..', 'tmp', 'sockz-test.json')
-    });
+    const fbConfig = path.join(__dirname, '..', 'tmp', 'sockz-test.json');
+
+    if (fs.existsSync(fbConfig)) {
+      this.database = new Firestore({
+        projectId: 'sockz-test',
+        keyFilename: fbConfig
+      });
+    }
 
     this.app = new SockzWebApp(this);
   }
