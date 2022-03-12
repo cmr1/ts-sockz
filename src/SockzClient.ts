@@ -65,7 +65,7 @@ export class SockzClient extends SockzRelay implements ISockzClient {
 
           const cert = this.socket.getCertificate() as PeerCertificate;
 
-          this.signature = cert.subject.CN;
+          this.signature = cert.subject?.CN;
 
           this.init();
           // this.reg(this.signature);

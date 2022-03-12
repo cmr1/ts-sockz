@@ -64,7 +64,7 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
   }
 
   public authorized(): void {
-    const msg = `Authorized: ${this.cert?.subject.CN}`;
+    const msg = `Authorized: ${this.cert?.subject?.CN}`;
 
     this.log.success(msg);
 
@@ -77,7 +77,7 @@ export class SockzRelay extends SockzBase implements ISockzConnectable {
 
   public unauthorized(): void {
     const authError = (this.socket as TLSSocket).authorizationError;
-    const errMsg = `Unauthorized: ${this.cert?.subject.CN} (${authError})`;
+    const errMsg = `Unauthorized: ${this.cert?.subject?.CN} (${authError})`;
 
     this.log.error(errMsg);
     this.debug();

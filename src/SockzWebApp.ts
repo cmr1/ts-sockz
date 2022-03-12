@@ -22,7 +22,13 @@ import { SockzController } from './SockzController';
 // import { initializeApp } from "firebase/app";
 import { Firestore } from '@google-cloud/firestore';
 
-const { SESSION_SECRET = 'super secret session' } = process.env;
+const {
+  SESSION_SECRET = 'super secret session',
+  CONSOLE_WEB_URL = 'http://localhost:3000',
+  SERVER_KEY_NAME = 'server.clientKey.pem',
+  SERVER_CA_NAME = 'server.serviceKey.pem',
+  SERVER_CERT_NAME = 'server.certificate.pem'
+} = process.env;
 
 interface CreateUserParams {
   sub?: string;
@@ -200,7 +206,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     this.init();
     this.views();
-    // this.sess();
+    // this.apiSess();
     this.auth();
     this.routes();
     this.static();
@@ -260,10 +266,11 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     // parses json data
     this.server.use(express.json());
 
-    this.server.get('/health', this.sess(), this.restrict(['read:clients']), this.health.bind(this));
+    // TODO: Return PUBLIC KEY here? Used for client to encrypt messages back?
+    this.server.get('/health', this.apiSess(), this.restrict(['read:clients']), this.health.bind(this));
   }
 
-  public sess() {
+  public apiSess() {
     const secret = jwksRsa.expressJwtSecret({
       cache: true,
       rateLimit: true,
@@ -278,9 +285,29 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       algorithms: ['RS256']
     });
 
-    // this.server.use(jwtCheck);
+    return [jwtCheck];
+  }
 
-    return jwtCheck;
+  public tokens() {
+    return (req, res, next) => {
+      if (!req.oidc?.accessToken) return next();
+
+      try {
+        const { token_type, access_token } = req.oidc.accessToken as { token_type: string; access_token: string };
+        const data = jose.decodeJwt(access_token);
+        const message = JSON.stringify({ data, token_type, access_token }, null, 2);
+
+        this.log.debug(message);
+
+        res.locals.token_type = token_type;
+        res.locals.access_token = access_token;
+
+        next();
+      } catch (err) {
+        this.log.warn(err);
+        next();
+      }
+    };
   }
 
   public corsOptions(extra?: cors.CorsOptions): cors.CorsOptions {
@@ -297,7 +324,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   private health(req, res) {
-    res.json({ message: 'Authorized' });
+    res.json({ message: 'Connected' });
   }
 
   private auth(): void {
@@ -320,8 +347,8 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
           //   throw new Error('User is not a part of the Required Organization');
           // }
 
-          this.log.debug('session', session);
-          this.log.debug('claims', claims);
+          // this.log.debug('session', session);
+          // this.log.debug('claims', claims);
 
           const data = jose.decodeJwt(session.access_token);
           const message = JSON.stringify(data, null, 2);
@@ -333,16 +360,18 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
           req.session.user = user.data;
 
-          this.log.warn('afterCallback session', req.session, session);
+          // this.log.warn('afterCallback session', req.session, session);
 
           return session;
         }
       })
     );
 
+    this.server.use(this.tokens());
     this.server.use((req, res, next) => {
       res.locals.isAuthenticated = req.oidc.isAuthenticated();
       res.locals.activeRoute = req.originalUrl.replace(/^\//, '');
+      res.locals.consoleUrl = CONSOLE_WEB_URL;
 
       next();
     });
@@ -385,28 +414,36 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }
     });
 
-    this.server.get('/client/:clientName?', requiresAuth(), async (req, res) => {
-      // TODO: Check actual perms
+    this.server.post('/api/client/register', this.apiSess(), this.restrict(['read:clients']), (req, res) => {
+      try {
+        // this.log.warn('Api client auth with', req.body);
+        const { clientName, clientPassword } = req.body;
 
-      // Generate certs...
-      const tlsOpts = this.ctl.tlsOptions('server.certificate.pem', 'server.serviceKey.pem');
-      const password = crypto.randomBytes(60);
-      const clientName = req.params.clientName || 'Client';
-
-      console.log('Generating Client KeyPair ...', { clientName, password });
-      pem.createCertificate(
-        this.getClientOptions.bind(this)(clientName, tlsOpts.key as string, tlsOpts.cert as string, 'password'),
-        (clientErr, clientKeys) => {
-          if (clientErr) throw clientErr;
-
-          console.log('clientKeys genereated:', clientKeys);
-
-          res.render('client', {
-            clientName,
-            clientKeys
-          });
+        if (!clientName || !clientPassword) {
+          res.status(400).json({ message: 'Missing/invalid register params' });
+          return;
         }
-      );
+
+        // Generate certs...
+        const tlsOpts = this.ctl.tlsOptions('server.certificate.pem', 'server.serviceKey.pem');
+
+        this.log.info('Generating Client KeyPair ...', { clientName, clientPassword });
+
+        pem.createCertificate(
+          this.getClientOptions.bind(this)(clientName, tlsOpts.key as string, tlsOpts.cert as string, clientPassword),
+          (err, keys) => {
+            if (err) throw err;
+
+            this.log.info('keys genereated:', keys);
+
+            res.json({
+              auth: [keys.clientKey, keys.certificate].map((data) => Buffer.from(data).toString('base64')).join(':')
+            });
+          }
+        );
+      } catch (err) {
+        res.json(err);
+      }
     });
 
     this.server.get('/pricing', requiresAuth(), async (req, res) => {
@@ -442,28 +479,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     });
 
     this.server.get('/external-api/protected-message', requiresAuth(), async (req, res) => {
-      const { token_type, access_token } = req.oidc.accessToken as { token_type: string; access_token: string };
-      const data = jose.decodeJwt(access_token);
-      const message = JSON.stringify({ data, token_type, access_token }, null, 2);
-
-      this.log.debug(message);
-
-      // try {
-      //   const body: ExampleApiResponse = await got.get(
-      //     `${process.env.SERVER_URL}/api/messages/protected-message`,
-      //     {
-      //       headers: {
-      //         Authorization: `${token_type} ${access_token}`,
-      //       },
-      //     },
-      //   ).json();
-
-      //   message = body.message;
-      // } catch (e) {
-      //   message = 'Unable to retrieve message.';
-      // }
-
-      res.render('external-api', { message, token_type, access_token });
+      res.render('external-api', { message: 'hello' });
     });
 
     this.server.get('/sign-up/:page/:section?', (req, res) => {
@@ -542,7 +558,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   private routes(): void {
     // this.server.get(
     //   '/api/example',
-    //   this.sess(),
+    //   this.apiSess(),
     //   this.restrict(['admin:clients']),
     //   (req, res) => {
     //     res.json({ hello: 'world' });
