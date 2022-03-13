@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import Stripe from 'stripe';
 
 const { STRIPE_SECRET_KEY } = process.env;
@@ -98,6 +100,8 @@ if (STRIPE_SECRET_KEY) {
 
     console.log('Combined stripeData:');
     console.log(JSON.stringify(stripeData, null, 2));
+
+    fs.writeFileSync(path.join(__dirname, '..', '..', 'tmp', 'stripe-data.json'), JSON.stringify(stripeData, null, 2));
   };
 
   debug();

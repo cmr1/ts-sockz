@@ -1,0 +1,21 @@
+mixin product-details(pid, item)
+  div(id="product-" + pid)
+    h3
+      | #{item.product.name}
+      small(class="text-muted")
+        | #{item.product.description}
+    div(class="product-prices" id="product-prices-"+pid)
+      ul(class="list-group product-prices-list")
+        each price in item.prices
+          li(class="list-group-item product-price")
+            if price.recurring.interval_count > 1
+              | $#{price.unit_amount/10}/#{price.recurring.interval_count} #{price.recurring.interval}s
+            else
+              | $#{price.unit_amount/10}/#{price.recurring.interval}
+
+            if price.recurring.trial_period_days
+              span(class="product-trial")
+                | #{price.recurring.trial_period_days}
+        else
+          li(class="list-group-item product-price")
+            | No prices available!

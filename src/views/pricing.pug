@@ -1,8 +1,20 @@
 extends ../components/layout
 
+include ../components/product-details
+
 block content
-  ul
-    each product in productsList
-      li= product
+  form
+    input(name="name" placeholder="Name")
+    input(name="email" placeholder="Email")
+    input(name="amount" placeholder="Amount")
+    div(id="card-element")
+    div(id="card-errors" role="alert")
+    button
+      | Submit
+  ul(class="list-group products-list")
+    each item, pid in allProducts
+      li(class="list-group-item")
+        +product-details(pid, item)
     else
-      li No Pricing Plans Available
+      li(class="list-group-item")
+        | No Pricing Available

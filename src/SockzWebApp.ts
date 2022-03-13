@@ -18,6 +18,8 @@ import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 import { Firestore } from '@google-cloud/firestore';
 
+import { getAllProducts } from './utils/stripe'
+
 const {
   SESSION_SECRET = 'super secret session',
   CONSOLE_WEB_URL = 'http://localhost:3000',
@@ -549,6 +551,10 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
         this.log.debug('Loaded plans', plans);
 
+        const allProducts = await getAllProducts();
+
+        this.log.debug('ALL PROD', allProducts);
+
         const products = await this.stripe.products.list({
           limit: 100
         });
@@ -556,6 +562,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         res.render('pricing', {
           plans: plans.data,
           products: products.data,
+          allProducts,
           productsList: products.data.map((product) => {
             return `[${product.id}] (${product.type}) ${product.name} - ${product.description}`;
           })
