@@ -3,17 +3,23 @@ import Stripe from 'stripe';
 
 const { STRIPE_SECRET_KEY } = process.env;
 
+interface StripeDataRow {
+  product: Stripe.Product;
+  plans: Stripe.Plan[];
+  prices: Stripe.Price[];
+}
+
+interface StripeDataMap {
+  [id: string]: StripeDataRow;
+}
+
 if (STRIPE_SECRET_KEY) {
   const stripe = new Stripe(STRIPE_SECRET_KEY, {
     apiVersion: '2020-08-27'
   });
 
   const debug = async () => {
-    // const plans = await stripe.plans.list({
-    //   limit: 100
-    // });
-
-    // console.log('Plans', plans);
+    const stripeData: StripeDataMap = {};
 
     const products = await stripe.products.list({
       limit: 100
@@ -21,10 +27,62 @@ if (STRIPE_SECRET_KEY) {
 
     console.log(
       'Products',
+      // products,
       products.data.map((product) => {
         return `[${product.id}] (${product.type}) ${product.name} - ${product.description}`;
       })
     );
+
+    products.data.forEach((product) => {
+      stripeData[product.id] = {
+        product,
+        plans: [],
+        prices: []
+      };
+    });
+
+    // stripeData.products = [...products.data];
+
+    const plans = await stripe.plans.list({
+      limit: 100
+    });
+
+    // console.log('Plans', plans);
+
+    plans.data.forEach((plan) => {
+      const pid = plan.product as string;
+
+      if (stripeData[pid]) {
+        stripeData[pid].plans.push(plan);
+      } else {
+        console.error(`Cannot find product for plan: ${plan.product}`, plan);
+      }
+    });
+
+    const prices = await stripe.prices.list({
+      active: true,
+      // type: 'recurring', // or 'one_time'
+      // product: 'prod_LISHIdmRBlYbe2',
+      limit: 100
+    });
+
+    // console.log(
+    //   'Prices',
+    //   prices
+    // );
+
+    prices.data.forEach((price) => {
+      const pid = price.product as string;
+
+      if (stripeData[pid]) {
+        stripeData[pid].prices.push(price);
+      } else {
+        console.error(`Cannot find product for price: ${price.product}`, price);
+      }
+    });
+
+    console.log('Combined stripeData:');
+    console.log(JSON.stringify(stripeData, null, 2));
   };
 
   debug();
