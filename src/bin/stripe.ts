@@ -13,6 +13,21 @@ interface StripeDataMap {
   [id: string]: StripeDataRow;
 }
 
+/**
+ * Other stripe objects/apis to look at...
+ *
+ * https://stripe.com/docs/api/errors?lang=node
+ * - Errors
+ * - Metadata (all the datas)
+ * - Coupons
+ * - Promo Codes
+ * - Charges & Refunds
+ * - Checkout (flow, payment, billing, invoice, etc)
+ * - Payment Intents? (SetupIntent - future use)
+ * - Taxes? (Tax Codes, etc)
+ * - Customers (already partially setup)
+ */
+
 if (STRIPE_SECRET_KEY) {
   const stripe = new Stripe(STRIPE_SECRET_KEY, {
     apiVersion: '2020-08-27'
