@@ -10,6 +10,8 @@ import session from 'express-session';
 import jwt from 'express-jwt';
 import jwksRsa from 'jwks-rsa';
 import jwtAuthz from 'express-jwt-authz';
+import fetch from 'node-fetch';
+import { ManagementClient } from 'auth0';
 import { auth, requiresAuth } from 'express-openid-connect';
 import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
@@ -21,7 +23,13 @@ const {
   CONSOLE_WEB_URL = 'http://localhost:3000',
   SERVER_CERT_NAME = 'server.certificate.pem',
   SERVER_KEY_NAME = 'server.clientKey.pem',
-  SERVER_CA_NAME = 'server.certificate.pem'
+  SERVER_CA_NAME = 'server.certificate.pem',
+  AUTH0_ISSUER_BASE_URL,
+  AUTH0_ISSUER_DOMAIN,
+  AUTH0_CLIENT_ID,
+  BASE_URL,
+  AUTH0_AUDIENCE,
+  CLIENT_SECRET
 } = process.env;
 
 interface CreateUserParams {
@@ -146,6 +154,13 @@ class SockzUser extends SockzBase {
   }
 }
 
+interface Auth0Token {
+  scope: string;
+  token_type: string;
+  expires_in: number;
+  access_token: string;
+}
+
 declare module 'jose' {
   export interface UserClaimsPayload extends jose.JWTPayload {
     iss?: string;
@@ -169,13 +184,68 @@ declare module 'express-session' {
   }
 }
 
+enum UserRole {
+  ADMIN = 'rol_CATA1WsgGx6zcnMF',
+  AGENT = 'rol_2Br5G4IDGMO3xLoh',
+  CLIENT = 'rol_fY4Y6mp0CG3Td54C',
+  CONTROLLER = 'rol_uhe7mVY2EDCVXEqg'
+}
+
+const getToken = async (): Promise<Auth0Token> => {
+  if (AUTH0_ISSUER_BASE_URL && AUTH0_CLIENT_ID && CLIENT_SECRET) {
+    // GENERATE MGMT TOKEN:
+    const url = `${AUTH0_ISSUER_BASE_URL}oauth/token`;
+    const options = {
+      // url,
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'client_credentials',
+        client_id: 'MknzIPbTQLtbEF3UmpjnDFpxrgV0JQHE',
+        client_secret: 'EmrXa1F_wxItmXlUSyyvui5gsjKiRNnARifovsz36PP6Lm7OrxaL21cNZRtXamtJ',
+        audience: `${AUTH0_ISSUER_BASE_URL}api/v2/`
+      })
+    };
+
+    console.log('Generate auth0token', url, options);
+
+    const res = await fetch(url, options);
+    const data = (await res.json()) as Auth0Token;
+
+    if (data && data.access_token) {
+      console.log(data);
+      return data;
+    } else {
+      throw new Error('Unable to get token!');
+    }
+
+    // fetch(url, options).then((res) => res.json())
+    //   .then(function (data) {
+    //     console.log(data);
+    //   })
+    //   .catch(function (error) {
+    //     console.error(error);
+    //   });
+  } else {
+    throw new Error('Bad env');
+  }
+};
+
+const TOKEN_TIME_PADDING = 500;
+
 export class SockzWebApp extends SockzBase implements ISockzWebApp {
   public stripe: Stripe;
   public server: Express;
   public database: Firestore;
+  public token: Auth0Token;
+  public auth0: ManagementClient;
+
+  private refreshTokenTimeout;
 
   constructor(public ctl: SockzController, public cors?: cors.CorsOptions) {
     super();
+
+    this.authorizeAuth0();
 
     this.server = express();
     this.stripe = this.ctl.stripe;
@@ -201,6 +271,25 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         res.status(err.status || 500).json(err);
       }
     });
+  }
+
+  private async authorizeAuth0(): Promise<Auth0Token> {
+    this.token = await getToken();
+
+    if (AUTH0_ISSUER_DOMAIN && this.token) {
+      this.auth0 = new ManagementClient({
+        domain: AUTH0_ISSUER_DOMAIN,
+        token: this.token.access_token
+      });
+
+      this.refreshTokenTimeout = setTimeout(() => {
+        this.authorizeAuth0();
+      }, 6 * 60 * 60 * 1000); // Rotate auth0 token every 6hrs
+    }
+
+    console.log('Authorized with auth0', this.token);
+
+    return this.token;
   }
 
   public get publicDir(): string {
@@ -369,24 +458,50 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       res.render('home');
     });
 
+    // > Users
+
+    this.server.get('/users', requiresAuth(), async (req, res) => {
+      const users = await this.auth0.getUsers();
+
+      res.render('users', { users });
+    });
+
     // > Profile
 
     this.server.get('/profile', requiresAuth(), async (req, res) => {
       this.log.debug(req.oidc.idTokenClaims);
       this.log.debug(req.session);
 
-      if (req.session.user) {
-        const user = new SockzUser(this, req.session.user);
-        const customer = await user.findStripeCustomer();
+      const { user } = req.oidc;
+      const userId = user?.sub;
 
-        res.render('profile', {
-          user: req.oidc.user,
-          sockz: req.session.user,
-          customer: customer
-        });
+      if (userId) {
+        const params = { id: userId, page: 0, per_page: 50, include_totals: true };
+        const roles = await this.auth0.getUserRoles(params);
+        const permissions = await this.auth0.getUserPermissions(params);
+        const profileData = {
+          user,
+          roles,
+          permissions
+        };
+
+        this.log.info('Render profile page with', profileData);
+
+        if (req.session.user) {
+          const sockzUser = new SockzUser(this, req.session.user);
+          const stripeCustomer = await sockzUser.findStripeCustomer();
+
+          res.render('profile', {
+            ...profileData,
+            sockzUser: req.session.user,
+            stripeCustomer: stripeCustomer
+          });
+        } else {
+          res.render('profile', profileData);
+        }
       } else {
         res.render('profile', {
-          user: req.oidc.user
+          user: 'No user found for session...'
         });
       }
     });

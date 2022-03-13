@@ -41,6 +41,7 @@ const getToken = async (): Promise<string> => {
     const data = await res.json();
 
     if (data && data.access_token) {
+      console.log(data);
       return data.access_token;
     } else {
       throw new Error('Unable to get token!');

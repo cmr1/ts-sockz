@@ -16,6 +16,12 @@ block content
       div(class="row")
         pre(class="col-12 text-light bg-dark p-4")
           | #{JSON.stringify(user, null, 2)}
+      div(class="row")
+        pre(class="col-12 text-light bg-dark p-4")
+          | #{JSON.stringify(roles, null, 2)}
+      div(class="row")
+        pre(class="col-12 text-light bg-dark p-4")
+          | #{JSON.stringify(permissions, null, 2)}
     if sockz
       div(class="row")
         pre(class="col-12 text-light bg-dark p-4")
