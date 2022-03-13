@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsc && npm run build:pug",
     "pem": "ts-node src/bin/pem.ts",
+    "auth0": "ts-node src/bin/auth0.ts",
     "build:pug": "mkdir -p dist && for d in views components; do cp -r src/$d dist/$d; done",
     "server": "nodemon src/bin/server.ts",
     "agent": "nodemon -d 2 src/bin/agent.ts",
@@ -38,6 +39,7 @@
   "dependencies": {
     "@google-cloud/firestore": "^5.0.2",
     "ansi-to-html": "^0.7.2",
+    "auth0": "^2.40.0",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
@@ -59,6 +61,7 @@
   },
   "devDependencies": {
     "@bowtie/prettier": "^1.4.1",
+    "@types/auth0": "^2.34.13",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
     "@types/express-session": "^1.17.4",
