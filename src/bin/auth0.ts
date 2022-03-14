@@ -218,15 +218,18 @@ const testStuff = async () => {
       // });
     }
 
-    // auth0
-    //   .getUsers()
-    //   .then(function (users) {
-    //     console.log(users);
-    //   })
-    //   .catch(function (err) {
-    //     console.error(err);
-    //     // Handle error.
-    //   });
+    auth0
+      .getUsers()
+      .then(function (users) {
+        console.log(users);
+        // users.forEach((user) => {
+        //   user.
+        // })
+      })
+      .catch(function (err) {
+        console.error(err);
+        // Handle error.
+      });
   }
 };
 

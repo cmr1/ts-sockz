@@ -9,9 +9,18 @@ mixin product-details(pid, item)
         each price in item.prices
           li(class="list-group-item product-price")
             if price.recurring.interval_count > 1
-              | $#{price.unit_amount/10}/#{price.recurring.interval_count} #{price.recurring.interval}s
+              | $#{price.unit_amount/100}/#{price.recurring.interval_count} #{price.recurring.interval}s
             else
-              | $#{price.unit_amount/10}/#{price.recurring.interval}
+              | $#{price.unit_amount/100}/#{price.recurring.interval}
+
+            form(method="POST" action="/checkout/"+price.id)
+              button(type="submit" class="btn btn-sm btn-info" id="checkout-btn-"+price.id)
+                | Purchase
+
+            //- button(
+            //-   class="btn btn-primary btn-block",
+            //-   onclick=`window.location='/checkout/${price.id}'`
+            //- ) Select
 
             if price.recurring.trial_period_days
               span(class="product-trial")
