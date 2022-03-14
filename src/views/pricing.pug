@@ -3,10 +3,14 @@ extends ../components/layout
 include ../components/product-details
 
 block content
-  ul(class="list-group products-list")
+  h1 Pricing &amp; Subscriptions
+  div(class="card-columns products-list")
     each item, pid in allProducts
-      li(class="list-group-item")
-        +product-details(pid, item)
+      div(class="card")
+        img(class="card-img-top" src=item.image alt=item.title style="max-width: 100px; display: block; margin: 15px auto;")
+        div(class="card-body")
+          h4(class="card-title") #{item.title}
+          +product-details(pid, item)
     else
       li(class="list-group-item")
         | No Pricing Available

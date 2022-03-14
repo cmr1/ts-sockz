@@ -1,21 +1,29 @@
 mixin product-details(pid, item)
   div(id="product-" + pid)
-    h3
-      | #{item.product.name}
-      small(class="text-muted")
-        | #{item.product.description}
+    if item.subtitle
+      h5(class="text-muted")
+        | #{item.subtitle}
     div(class="product-prices" id="product-prices-"+pid)
       ul(class="list-group product-prices-list")
         each price in item.prices
-          li(class="list-group-item product-price")
+          li(class="list-group-item product-price "+(item.active && item.active.includes(price.id) ? "active" : ""))
             if price.recurring.interval_count > 1
               | $#{price.unit_amount/100}/#{price.recurring.interval_count} #{price.recurring.interval}s
             else
               | $#{price.unit_amount/100}/#{price.recurring.interval}
 
-            form(method="POST" action="/checkout/"+price.id)
-              button(type="submit" class="btn btn-sm btn-info" id="checkout-btn-"+price.id)
-                | Purchase
+            if price.recurring.usage_type == "metered"
+              small(class="text-muted")
+                | /#{item.title}
+
+            if item.active && item.active.includes(price.id)
+              form(method="POST" action="/cancel/"+price.id style="display: inline-block; float: right;")
+                button(type="submit" class="btn btn-sm btn-warning" id="cancel-btn-"+price.id)
+                  | Cancel
+            else
+              form(method="POST" action="/checkout/"+price.id style="display: inline-block; float: right;")
+                button(type="submit" class="btn btn-sm btn-info" id="checkout-btn-"+price.id)
+                  | Select
 
             //- button(
             //-   class="btn btn-primary btn-block",

@@ -4,6 +4,10 @@ import Stripe from 'stripe';
 const { STRIPE_SECRET_KEY } = process.env;
 
 export interface StripeDataRow {
+  active: string[];
+  image: string;
+  title: string;
+  subtitle: string | null;
   product: Stripe.Product;
   plans: Stripe.Plan[];
   prices: Stripe.Price[];
@@ -13,7 +17,7 @@ export interface StripeDataMap {
   [id: string]: StripeDataRow;
 }
 
-export const getAllProducts = (): Promise<StripeDataMap> => {
+export const getAllProducts = (ids?: string[]): Promise<StripeDataMap> => {
   if (STRIPE_SECRET_KEY) {
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: '2020-08-27'
@@ -23,6 +27,7 @@ export const getAllProducts = (): Promise<StripeDataMap> => {
       const stripeData: StripeDataMap = {};
 
       const products = await stripe.products.list({
+        ids,
         limit: 100
       });
 
@@ -37,6 +42,10 @@ export const getAllProducts = (): Promise<StripeDataMap> => {
       products.data.forEach((product) => {
         stripeData[product.id] = {
           product,
+          title: product.name,
+          subtitle: product.description,
+          image: product.images.length ? product.images[0] : '/img/logo.png',
+          active: [],
           plans: [],
           prices: []
         };
@@ -93,7 +102,6 @@ export const getAllProducts = (): Promise<StripeDataMap> => {
     throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
   }
 };
-
 
 /**
  * Metadata?

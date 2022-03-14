@@ -18,7 +18,7 @@ import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 import { Firestore } from '@google-cloud/firestore';
 
-import { getAllProducts } from './utils/stripe'
+import { getAllProducts } from './utils/stripe';
 
 const {
   SESSION_SECRET = 'super secret session',
@@ -386,7 +386,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         // }
 
         const { refresh, isExpired } = req.oidc.accessToken;
-        let { token_type, access_token } = req.oidc.accessToken;
+        const { token_type, access_token } = req.oidc.accessToken;
         // const data = jose.decodeJwt(access_token);
         // const message = JSON.stringify({ data, token_type, access_token }, null, 2);
 
@@ -443,7 +443,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
           response_type: 'code',
           audience: process.env.AUTH0_AUDIENCE,
           scope: 'openid profile email offline_access read:clients'
-        },
+        }
         // afterCallback: async (req, res, session) => {
         //   const claims: jose.UserClaimsPayload = jose.decodeJwt(session.id_token); // using jose library to decode JWT
         //   // if (claims.org_id !== 'Required Organization') {
@@ -507,16 +507,18 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       this.log.debug(req.oidc.idTokenClaims);
       this.log.warn(req.session);
 
-      // Load detailed user as middleware? loadUser()
-      const sockzUser = new SockzUser(this, req.oidc.idTokenClaims as CreateUserParams);
-      await sockzUser.register();
-      const stripeCustomer = await sockzUser.findStripeCustomer();
+      if (req.oidc?.idTokenClaims) {
+        // Load detailed user as middleware? loadUser()
+        const sockzUser = new SockzUser(this, req.oidc.idTokenClaims as CreateUserParams);
+        await sockzUser.register();
+        const stripeCustomer = await sockzUser.findStripeCustomer();
 
-      req.session.user = sockzUser.data;
-      req.session.customer = stripeCustomer;
+        req.session.user = sockzUser.data;
+        req.session.customer = stripeCustomer;
 
-      res.locals.sockzUserData = sockzUser.data;
-      res.locals.stripeCustomer = stripeCustomer;
+        res.locals.sockzUserData = sockzUser.data;
+        res.locals.stripeCustomer = stripeCustomer;
+      }
 
       next();
     };
@@ -546,7 +548,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
           // sockzUserData: sockzUser.data,
           user,
           roles,
-          permissions,
+          permissions
           // stripeCustomer
         };
 
@@ -618,7 +620,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
           this.log.info('Created payment intent', paymentIntent);
 
           res.send({
-            clientSecret: paymentIntent.client_secret,
+            clientSecret: paymentIntent.client_secret
           });
         } else {
           throw new Error('Cannot make payment without an amount!');
@@ -641,12 +643,12 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
           {
             // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
             price: price.id,
-            quantity: price.recurring?.usage_type !== 'metered' ? quantity as number : undefined
-          },
+            quantity: price.recurring?.usage_type !== 'metered' ? (quantity as number) : undefined
+          }
         ],
         mode: price.type === 'recurring' ? 'subscription' : 'payment',
         success_url: `${BASE_URL}/checkout-complete/${priceId}?do_refresh=1`,
-        cancel_url: `${BASE_URL}/pricing?session-canceled`,
+        cancel_url: `${BASE_URL}/pricing?session-canceled`
       });
 
       if (session.url) {
@@ -691,27 +693,49 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }
     });
 
-    this.server.get('/pricing', async (req, res) => {
+    this.server.get('/pricing', withSockzUser, async (req, res) => {
       try {
-        const plans = await this.stripe.plans.list();
+        const allProducts = await getAllProducts(['prod_LIZ6yfL65hhehB', 'prod_LIZ7xlmH7FrSjJ']);
 
-        this.log.debug('Loaded plans', plans);
+        if (req.session.customer) {
+          const subscriptions = await this.stripe.subscriptions.list({
+            customer: req.session.customer.id,
+            limit: 10
+          });
 
-        const allProducts = await getAllProducts();
+          subscriptions.data.forEach((sub) => {
+            sub.items.data.forEach(async (item) => {
+              const pid = item.price.product as string;
 
-        this.log.debug('ALL PROD', allProducts);
+              if (item.price.recurring?.usage_type === 'metered') {
+                /**
+                 * USAGE RECORD EXAMPLE
+                 */
+                const usageRecord = await this.stripe.subscriptionItems.createUsageRecord(item.id, {
+                  quantity: 5
+                  // timestamp: "now" // default = 'now'
+                });
 
-        const products = await this.stripe.products.list({
-          limit: 100
-        });
+                if (Math.random() * 100 > 80) {
+                  this.log.warn('CREATED USAGE RECORD', usageRecord, item);
+                }
+              }
+
+              if (allProducts[pid]) {
+                if (!allProducts[pid].active) {
+                  allProducts[pid].active = [];
+                }
+
+                allProducts[pid].active?.push(item.price.id);
+              }
+            });
+          });
+        }
+
+        this.log.info('Rendering with allProducts', allProducts);
 
         res.render('pricing', {
-          plans: plans.data,
-          products: products.data,
-          allProducts,
-          productsList: products.data.map((product) => {
-            return `[${product.id}] (${product.type}) ${product.name} - ${product.description}`;
-          })
+          allProducts
         });
       } catch (err) {
         this.log.error(err);
