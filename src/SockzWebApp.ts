@@ -392,11 +392,12 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
         // // this.log.debug(message);
 
-
+        // TODO: Fix this, not working with error: TypeError: refresh_token not present in TokenSet
         if (isExpired() || !!req.query.do_refresh) {
-          this.log.warn('Refreshing user token', { expired: isExpired(), query: req.query });
+          const data = await refresh();
 
-          ({ token_type, access_token } = await refresh());
+          this.log.warn('Refreshing user token', { expired: isExpired(), query: req.query, data });
+          // ({ token_type, access_token }) = data;
         }
 
         this.log.info('Setting tokens from middleware', { token_type, access_token });
