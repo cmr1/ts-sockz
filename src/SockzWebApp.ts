@@ -695,7 +695,8 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
 
     this.server.get('/pricing', withSockzUser, async (req, res) => {
       try {
-        const allProducts = await getAllProducts(['prod_LIZ6yfL65hhehB', 'prod_LIZ7xlmH7FrSjJ']);
+        // const allProducts = await getAllProducts(['prod_LIZ6yfL65hhehB', 'prod_LIZ7xlmH7FrSjJ']);
+        const allProducts = await getAllProducts();
 
         if (req.session.customer) {
           const subscriptions = await this.stripe.subscriptions.list({

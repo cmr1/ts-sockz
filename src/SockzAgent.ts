@@ -115,7 +115,7 @@ export class SockzAgent extends SockzRelay implements ISockzAgent {
 
     this.socket = tls.connect(
       {
-        ...this.ctl.tlsOptions(AGENT_CERT_NAME, AGENT_KEY_NAME, AGENT_CA_LIST),
+        ...this.ctl.tlsOptions(AGENT_CERT_NAME, AGENT_KEY_NAME, AGENT_CA_LIST, true, false),
         host: this.ctl.host,
         port: this.ctl.agentPort
       },
