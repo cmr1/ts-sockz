@@ -578,7 +578,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         }
 
         // Generate certs...
-        const tlsOpts = this.ctl.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME);
+        const tlsOpts = this.ctl.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CERT_NAME);
 
         this.log.debug('Generating Client KeyPair ...', { clientName, clientPassword });
 

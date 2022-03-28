@@ -25,7 +25,10 @@ const {
   SERVER_HOST_NAME = 'localhost',
   SERVER_CERT_NAME = 'server.certificate.pem',
   SERVER_KEY_NAME = 'server.clientKey.pem',
-  SERVER_CA_NAME = 'server.certificate.pem',
+  SERVER_CA_NAME = 'Sockz.io Development',
+  SERVER_CA_KEY_NAME = 'CA.key.pem',
+  SERVER_CA_CERT_NAME = 'CA.cert.pem',
+  GOOGLE_SRV_KEY = '../tmp/sockz-test.json',
   STRIPE_SECRET_KEY
 } = process.env;
 
@@ -60,7 +63,7 @@ export class SockzController extends SockzBase {
       throw new Error('Missing required env var for stripe: STRIPE_SECRET_KEY');
     }
 
-    const fbConfig = path.join(__dirname, '..', 'tmp', 'sockz-test.json');
+    const fbConfig = path.join(__dirname, GOOGLE_SRV_KEY);
 
     if (fs.existsSync(fbConfig)) {
       this.database = new Firestore({
@@ -95,7 +98,13 @@ export class SockzController extends SockzBase {
     await this.database.doc(this.docPath).set(this.docData);
   }
 
-  public tlsOptions(cert: string, key: string, caList?: string, requestCert = true, rejectUnauthorized = true): TLSSocketOptions {
+  public tlsOptions(
+    cert: string,
+    key: string,
+    caList?: string,
+    requestCert = true,
+    rejectUnauthorized = true
+  ): TLSSocketOptions {
     const certsDir = path.join(__dirname, '..', 'certs');
 
     return {
@@ -130,13 +139,13 @@ export class SockzController extends SockzBase {
     this.log.debug('SockzController#init()');
 
     this.web = new WebServer(
-      this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME, false, false),
+      this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_KEY_NAME, false, false),
       this.app.server
       // this.connectWebserver.bind(this)
     );
     this.wss = new WebSocketServer({ server: this.web });
-    this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME, true, false));
-    this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME, true, true));
+    this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_KEY_NAME, true, false));
+    this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_KEY_NAME, true, true));
 
     this.save();
   }
