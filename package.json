@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsc && npm run build:pug",
     "pem": "ts-node src/bin/pem.ts",
+    "pem2": "ts-node src/bin/pem2.ts",
     "auth0": "ts-node src/bin/auth0.ts",
     "stripe": "ts-node src/bin/stripe.ts",
     "build:pug": "mkdir -p dist && for d in views components; do cp -r src/$d dist/$d; done",
