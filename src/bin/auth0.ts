@@ -35,13 +35,13 @@ const getToken = async (): Promise<string> => {
       })
     };
 
-    console.log('Generate auth0token', url, options);
+    // console.log('Generate auth0token', url, options);
 
     const res = await fetch(url, options);
     const data = await res.json();
 
     if (data && data.access_token) {
-      console.log(data);
+      // console.log(data);
       return data.access_token;
     } else {
       throw new Error('Unable to get token!');

@@ -210,13 +210,13 @@ const getToken = async (): Promise<Auth0Token> => {
       })
     };
 
-    console.log('Generate auth0token', url, options);
+    // console.log('Generate auth0token', url, options);
 
     const res = await fetch(url, options);
     const data = (await res.json()) as Auth0Token;
 
     if (data && data.access_token) {
-      console.log(data);
+      // console.log(data);
       return data;
     } else {
       throw new Error('Unable to get token!');
@@ -290,7 +290,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }, 6 * 60 * 60 * 1000); // Rotate auth0 token every 6hrs
     }
 
-    console.log('Authorized with auth0', this.token);
+    // console.log('Authorized with auth0', this.token);
 
     return this.token;
   }
