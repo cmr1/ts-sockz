@@ -1,8 +1,16 @@
 extends ../components/layout
 
+include ../components/product-details
+
 block content
-  ul
-    each plan in plans
-      li= plan.object + ' - ' + plan.id + ' : ' + plan.amount + ' : ' + plan.billing_scheme + ' : per ' + plan.interval_count + ' ' + plan.interval
+  h1 Pricing &amp; Subscriptions
+  div(class="card-columns products-list")
+    each item, pid in allProducts
+      div(class="card")
+        img(class="card-img-top" src=item.image alt=item.title style="max-width: 100px; display: block; margin: 15px auto;")
+        div(class="card-body")
+          h4(class="card-title") #{item.title}
+          +product-details(pid, item)
     else
-      li No Pricing Plans Available
+      li(class="list-group-item")
+        | No Pricing Available

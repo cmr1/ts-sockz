@@ -1,0 +1,9 @@
+extends ../components/stripe
+
+block content
+  form(id="payment-form")
+    div(id="payment-element")
+    button(id="submit")
+      div(id="spinner" class="spinner hidden")
+      span(id="button-text") Pay Now
+    div(id="payment-message" class="hidden")

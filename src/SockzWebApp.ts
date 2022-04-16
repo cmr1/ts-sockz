@@ -10,18 +10,28 @@ import session from 'express-session';
 import jwt from 'express-jwt';
 import jwksRsa from 'jwks-rsa';
 import jwtAuthz from 'express-jwt-authz';
+import fetch from 'node-fetch';
+import { AuthenticationClient, ManagementClient } from 'auth0';
 import { auth, requiresAuth } from 'express-openid-connect';
 import { ISockzWebApp } from './contracts';
 import { SockzBase } from './SockzBase';
 import { SockzController } from './SockzController';
 import { Firestore } from '@google-cloud/firestore';
 
+import { getAllProducts } from './utils/stripe';
+
 const {
   SESSION_SECRET = 'super secret session',
   CONSOLE_WEB_URL = 'http://localhost:3000',
   SERVER_CERT_NAME = 'server.certificate.pem',
   SERVER_KEY_NAME = 'server.clientKey.pem',
-  SERVER_CA_NAME = 'server.certificate.pem'
+  SERVER_CA_NAME = 'server.certificate.pem',
+  AUTH0_ISSUER_BASE_URL,
+  AUTH0_ISSUER_DOMAIN,
+  AUTH0_CLIENT_ID,
+  BASE_URL,
+  AUTH0_AUDIENCE,
+  CLIENT_SECRET
 } = process.env;
 
 interface CreateUserParams {
@@ -146,6 +156,13 @@ class SockzUser extends SockzBase {
   }
 }
 
+interface Auth0Token {
+  scope: string;
+  token_type: string;
+  expires_in: number;
+  access_token: string;
+}
+
 declare module 'jose' {
   export interface UserClaimsPayload extends jose.JWTPayload {
     iss?: string;
@@ -166,16 +183,72 @@ declare module 'jose' {
 declare module 'express-session' {
   export interface SessionData {
     user: CreateUserParams;
+    customer?: Stripe.Customer;
   }
 }
+
+enum UserRole {
+  ADMIN = 'rol_CATA1WsgGx6zcnMF',
+  AGENT = 'rol_2Br5G4IDGMO3xLoh',
+  CLIENT = 'rol_fY4Y6mp0CG3Td54C',
+  CONTROLLER = 'rol_uhe7mVY2EDCVXEqg'
+}
+
+const getToken = async (): Promise<Auth0Token> => {
+  if (AUTH0_ISSUER_BASE_URL && AUTH0_CLIENT_ID && CLIENT_SECRET) {
+    // GENERATE MGMT TOKEN:
+    const url = `${AUTH0_ISSUER_BASE_URL}oauth/token`;
+    const options = {
+      // url,
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'client_credentials',
+        client_id: 'MknzIPbTQLtbEF3UmpjnDFpxrgV0JQHE',
+        client_secret: 'EmrXa1F_wxItmXlUSyyvui5gsjKiRNnARifovsz36PP6Lm7OrxaL21cNZRtXamtJ',
+        audience: `${AUTH0_ISSUER_BASE_URL}api/v2/`
+      })
+    };
+
+    // console.log('Generate auth0token', url, options);
+
+    const res = await fetch(url, options);
+    const data = (await res.json()) as Auth0Token;
+
+    if (data && data.access_token) {
+      // console.log(data);
+      return data;
+    } else {
+      throw new Error('Unable to get token!');
+    }
+
+    // fetch(url, options).then((res) => res.json())
+    //   .then(function (data) {
+    //     console.log(data);
+    //   })
+    //   .catch(function (error) {
+    //     console.error(error);
+    //   });
+  } else {
+    throw new Error('Bad env');
+  }
+};
+
+const TOKEN_TIME_PADDING = 500;
 
 export class SockzWebApp extends SockzBase implements ISockzWebApp {
   public stripe: Stripe;
   public server: Express;
   public database: Firestore;
+  public token: Auth0Token;
+  public auth0: ManagementClient;
+
+  private refreshTokenTimeout;
 
   constructor(public ctl: SockzController, public cors?: cors.CorsOptions) {
     super();
+
+    this.authorizeAuth0();
 
     this.server = express();
     this.stripe = this.ctl.stripe;
@@ -203,6 +276,25 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     });
   }
 
+  private async authorizeAuth0(): Promise<Auth0Token> {
+    this.token = await getToken();
+
+    if (AUTH0_ISSUER_DOMAIN && this.token) {
+      this.auth0 = new ManagementClient({
+        domain: AUTH0_ISSUER_DOMAIN,
+        token: this.token.access_token
+      });
+
+      this.refreshTokenTimeout = setTimeout(() => {
+        this.authorizeAuth0();
+      }, 6 * 60 * 60 * 1000); // Rotate auth0 token every 6hrs
+    }
+
+    // console.log('Authorized with auth0', this.token);
+
+    return this.token;
+  }
+
   public get publicDir(): string {
     return path.join(__dirname, '..', 'public');
   }
@@ -228,7 +320,7 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
     this.server.use(
       session({
         secret: SESSION_SECRET,
-        resave: false,
+        resave: true,
         saveUninitialized: true,
         cookie: { secure: true }
       })
@@ -266,19 +358,52 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
   }
 
   public tokens() {
-    return (req, res, next) => {
+    return async (req, res, next) => {
+      this.log.warn('oidc', req.oidc?.accessToken, req.oidc?.refreshToken);
+
       if (!req.oidc?.accessToken) return next();
 
       try {
-        const { token_type, access_token } = req.oidc.accessToken as { token_type: string; access_token: string };
-        const data = jose.decodeJwt(access_token);
-        const message = JSON.stringify({ data, token_type, access_token }, null, 2);
+        // if (AUTH0_ISSUER_DOMAIN && AUTH0_CLIENT_ID && CLIENT_SECRET) {
+        //   const auth0 = new AuthenticationClient({
+        //     domain: AUTH0_ISSUER_DOMAIN,
+        //     clientId: AUTH0_CLIENT_ID,
+        //     clientSecret: CLIENT_SECRET,
+        //   });
 
-        this.log.debug(message);
+        //   auth0.clientCredentialsGrant(
+        //     {
+        //       audience: `${AUTH0_ISSUER_BASE_URL}api/v2/`,
+        //       scope: 'admin:scope',
+        //     },
+        //     function (err, response) {
+        //       if (err) {
+        //         // Handle error.
+        //       }
+        //       console.log(response.access_token);
+        //     }
+        //   );
+        // }
+
+        const { refresh, isExpired } = req.oidc.accessToken;
+        const { token_type, access_token } = req.oidc.accessToken;
+        // const data = jose.decodeJwt(access_token);
+        // const message = JSON.stringify({ data, token_type, access_token }, null, 2);
+
+        // // this.log.debug(message);
+
+        // TODO: Fix this, not working with error: TypeError: refresh_token not present in TokenSet
+        if (isExpired() || !!req.query.do_refresh) {
+          const data = await refresh();
+
+          this.log.warn('Refreshing user token', { expired: isExpired(), query: req.query, data });
+          // ({ token_type, access_token }) = data;
+        }
+
+        this.log.info('Setting tokens from middleware', { token_type, access_token });
 
         res.locals.token_type = token_type;
         res.locals.access_token = access_token;
-
         next();
       } catch (err) {
         this.log.warn(err);
@@ -316,31 +441,32 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
         clientSecret: process.env.CLIENT_SECRET,
         authorizationParams: {
           response_type: 'code',
-          audience: process.env.AUTH0_AUDIENCE
-        },
-        afterCallback: async (req, res, session) => {
-          const claims: jose.UserClaimsPayload = jose.decodeJwt(session.id_token); // using jose library to decode JWT
-          // if (claims.org_id !== 'Required Organization') {
-          //   throw new Error('User is not a part of the Required Organization');
-          // }
-
-          // this.log.debug('session', session);
-          // this.log.debug('claims', claims);
-
-          const data = jose.decodeJwt(session.access_token);
-          const message = JSON.stringify(data, null, 2);
-
-          this.log.debug(message);
-
-          const user = new SockzUser(this, claims);
-          await user.register();
-
-          req.session.user = user.data;
-
-          // this.log.warn('afterCallback session', req.session, session);
-
-          return session;
+          audience: process.env.AUTH0_AUDIENCE,
+          scope: 'openid profile email offline_access read:clients'
         }
+        // afterCallback: async (req, res, session) => {
+        //   const claims: jose.UserClaimsPayload = jose.decodeJwt(session.id_token); // using jose library to decode JWT
+        //   // if (claims.org_id !== 'Required Organization') {
+        //   //   throw new Error('User is not a part of the Required Organization');
+        //   // }
+
+        //   // this.log.debug('session', session);
+        //   // this.log.debug('claims', claims);
+
+        //   const data = jose.decodeJwt(session.access_token);
+        //   const message = JSON.stringify(data, null, 2);
+
+        //   this.log.debug(message);
+
+        //   const user = new SockzUser(this, claims);
+        //   await user.register();
+
+        //   req.session.user = user.data;
+
+        //   // this.log.warn('afterCallback session', req.session, session);
+
+        //   return session;
+        // }
       })
     );
 
@@ -369,24 +495,69 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       res.render('home');
     });
 
+    // > Users
+
+    this.server.get('/users', requiresAuth(), async (req, res) => {
+      const users = await this.auth0.getUsers();
+
+      res.render('users', { users });
+    });
+
+    const withSockzUser = async (req, res, next) => {
+      this.log.debug(req.oidc.idTokenClaims);
+      this.log.warn(req.session);
+
+      if (req.oidc?.idTokenClaims) {
+        // Load detailed user as middleware? loadUser()
+        const sockzUser = new SockzUser(this, req.oidc.idTokenClaims as CreateUserParams);
+        await sockzUser.register();
+        const stripeCustomer = await sockzUser.findStripeCustomer();
+
+        req.session.user = sockzUser.data;
+        req.session.customer = stripeCustomer;
+
+        res.locals.sockzUserData = sockzUser.data;
+        res.locals.stripeCustomer = stripeCustomer;
+      }
+
+      next();
+    };
+
     // > Profile
 
-    this.server.get('/profile', requiresAuth(), async (req, res) => {
+    this.server.get('/profile', requiresAuth(), withSockzUser, async (req, res) => {
       this.log.debug(req.oidc.idTokenClaims);
-      this.log.debug(req.session);
+      this.log.warn(req.session);
 
-      if (req.session.user) {
-        const user = new SockzUser(this, req.session.user);
-        const customer = await user.findStripeCustomer();
+      this.log.warn('session sockzuser', req.session.user);
 
-        res.render('profile', {
-          user: req.oidc.user,
-          sockz: req.session.user,
-          customer: customer
-        });
+      // Load detailed user as middleware? loadUser()
+      // const sockzUser = new SockzUser(this, req.oidc.idTokenClaims as CreateUserParams);
+      // await sockzUser.register();
+
+      const { user } = req.oidc;
+      const userId = user?.sub;
+
+      if (userId) {
+        const params = { id: userId, page: 0, per_page: 50, include_totals: true };
+        const roles = await this.auth0.getUserRoles(params);
+        const permissions = await this.auth0.getUserPermissions(params);
+        // const stripeCustomer = await sockzUser.findStripeCustomer();
+        const profileData = {
+          // sockzUser,
+          // sockzUserData: sockzUser.data,
+          user,
+          roles,
+          permissions
+          // stripeCustomer
+        };
+
+        this.log.info('Render profile page with', profileData);
+
+        res.render('profile', profileData);
       } else {
         res.render('profile', {
-          user: req.oidc.user
+          user: 'No user found for session...'
         });
       }
     });
@@ -428,14 +599,144 @@ export class SockzWebApp extends SockzBase implements ISockzWebApp {
       }
     });
 
-    this.server.get('/pricing', async (req, res) => {
-      try {
-        const plans = await this.stripe.plans.list();
+    this.server.post('/payment/:priceId', requiresAuth(), withSockzUser, async (req, res) => {
+      const { priceId } = req.params;
+      const { currentPrice } = req.body;
 
-        this.log.debug('Loaded plans', plans);
+      this.log.info('Create payment intent', priceId, currentPrice);
+
+      try {
+        const price = await this.stripe.prices.retrieve(priceId);
+
+        if (price.unit_amount) {
+          const paymentIntent = await this.stripe.paymentIntents.create({
+            customer: req.session.customer?.id,
+            setup_future_usage: 'off_session',
+            amount: price.unit_amount,
+            currency: price.currency,
+            automatic_payment_methods: { enabled: true }
+          });
+
+          this.log.info('Created payment intent', paymentIntent);
+
+          res.send({
+            clientSecret: paymentIntent.client_secret
+          });
+        } else {
+          throw new Error('Cannot make payment without an amount!');
+        }
+      } catch (err) {
+        throw err;
+      }
+    });
+
+    this.server.post('/checkout/:priceId/:quantity?', requiresAuth(), withSockzUser, async (req, res) => {
+      const { priceId, quantity = 1 } = req.params;
+
+      const price = await this.stripe.prices.retrieve(priceId);
+
+      this.log.info('Redirect checkout for price', price);
+
+      const session = await this.stripe.checkout.sessions.create({
+        customer: req.session.customer?.id,
+        line_items: [
+          {
+            // Provide the exact Price ID (for example, pr_1234) of the product you want to sell
+            price: price.id,
+            quantity: price.recurring?.usage_type !== 'metered' ? (quantity as number) : undefined
+          }
+        ],
+        mode: price.type === 'recurring' ? 'subscription' : 'payment',
+        success_url: `${BASE_URL}/checkout-complete/${priceId}?do_refresh=1`,
+        cancel_url: `${BASE_URL}/pricing?session-canceled`
+      });
+
+      if (session.url) {
+        res.redirect(303, session.url);
+      } else {
+        res.redirect(302, '/?error=bad-session-url');
+      }
+    });
+
+    this.server.get('/checkout-complete/:priceId', requiresAuth(), withSockzUser, async (req, res) => {
+      const { priceId } = req.params;
+
+      const price = await this.stripe.prices.retrieve(priceId);
+
+      this.log.info('Completed checkout for price', price);
+
+      const data = { roles: [UserRole.ADMIN] };
+
+      if (req.session.user?.sub) {
+        await this.auth0.assignRolestoUser({ id: req.session.user.sub }, data);
+
+        res.redirect(`/profile?purchased=${priceId}`);
+      } else {
+        throw new Error(`Cannot assign role(s) to user without id/sub`);
+      }
+    });
+
+    this.server.get('/checkout/:priceId', requiresAuth(), async (req, res) => {
+      const { priceId } = req.params;
+
+      try {
+        const price = await this.stripe.prices.retrieve(priceId);
+
+        this.log.info('Render checkout for price', price);
+
+        res.render('checkout', {
+          price,
+          priceId
+        });
+      } catch (err) {
+        throw err;
+      }
+    });
+
+    this.server.get('/pricing', withSockzUser, async (req, res) => {
+      try {
+        // const allProducts = await getAllProducts(['prod_LIZ6yfL65hhehB', 'prod_LIZ7xlmH7FrSjJ']);
+        const allProducts = await getAllProducts();
+
+        if (req.session.customer) {
+          const subscriptions = await this.stripe.subscriptions.list({
+            customer: req.session.customer.id,
+            limit: 10
+          });
+
+          subscriptions.data.forEach((sub) => {
+            sub.items.data.forEach(async (item) => {
+              const pid = item.price.product as string;
+
+              if (item.price.recurring?.usage_type === 'metered') {
+                /**
+                 * USAGE RECORD EXAMPLE
+                 */
+                const usageRecord = await this.stripe.subscriptionItems.createUsageRecord(item.id, {
+                  quantity: 5
+                  // timestamp: "now" // default = 'now'
+                });
+
+                if (Math.random() * 100 > 80) {
+                  this.log.warn('CREATED USAGE RECORD', usageRecord, item);
+                }
+              }
+
+              if (allProducts[pid]) {
+                if (!allProducts[pid].active) {
+                  allProducts[pid].active = [];
+                }
+
+                allProducts[pid].active?.push(item.price.id);
+              }
+            });
+          });
+        }
+
+        this.log.info('Rendering with allProducts', allProducts);
 
         res.render('pricing', {
-          plans: plans.data
+          allProducts
         });
       } catch (err) {
         this.log.error(err);

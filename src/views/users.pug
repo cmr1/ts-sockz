@@ -1,0 +1,12 @@
+extends ../components/layout
+
+block content
+  if users
+    div
+      div(class="row align-items-center profile-header")
+        div(class="col-md text-center text-md-left")
+          h2 User List
+          p(class="lead text-muted") #{users.length} user(s) registered
+      div(class="row")
+        pre(class="col-12 text-light bg-dark p-4")
+          | #{JSON.stringify(users, null, 2)}

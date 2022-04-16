@@ -1,0 +1,12 @@
+extends ../components/layout
+
+include ../components/product-details
+
+block content
+  ul(class="list-group products-list")
+    each item, pid in allProducts
+      li(class="list-group-item")
+        +product-details(pid, item)
+    else
+      li(class="list-group-item")
+        | No Pricing Available

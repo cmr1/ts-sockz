@@ -95,14 +95,14 @@ export class SockzController extends SockzBase {
     await this.database.doc(this.docPath).set(this.docData);
   }
 
-  public tlsOptions(cert: string, key: string, caList?: string, rejectUnauthorized = false): TLSSocketOptions {
+  public tlsOptions(cert: string, key: string, caList?: string, requestCert = true, rejectUnauthorized = true): TLSSocketOptions {
     const certsDir = path.join(__dirname, '..', 'certs');
 
     return {
       key: fs.readFileSync(path.join(certsDir, key)),
       cert: fs.readFileSync(path.join(certsDir, cert)),
       ca: caList ? caList.split(',').map((ca) => fs.readFileSync(path.join(certsDir, ca.trim()))) : [],
-      requestCert: true,
+      requestCert,
       rejectUnauthorized
     };
   }
@@ -130,13 +130,13 @@ export class SockzController extends SockzBase {
     this.log.debug('SockzController#init()');
 
     this.web = new WebServer(
-      this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME),
+      this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME, false, false),
       this.app.server
       // this.connectWebserver.bind(this)
     );
     this.wss = new WebSocketServer({ server: this.web });
-    this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
-    this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME));
+    this.agentServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME, true, false));
+    this.clientServer = new Server(this.tlsOptions(SERVER_CERT_NAME, SERVER_KEY_NAME, SERVER_CA_NAME, true, true));
 
     this.save();
   }
